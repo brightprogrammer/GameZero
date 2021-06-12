@@ -1,0 +1,12 @@
+[submodule "3rdparty/Vulkan-Headers"]
+	path = 3rdparty/Vulkan-Headers
+	url = https://github.com/KhronosGroup/Vulkan-Headers
+[submodule "3rdparty/Vulkan-Loader"]
+	path = 3rdparty/Vulkan-Loader
+	url = https://github.com/KhronosGroup/Vulkan-Loader/
+[submodule "3rdparty/SDL"]
+	path = 3rdparty/SDL
+	url = https://github.com/libsdl-org/SDL
+[submodule "3rdparty/vk-bootstrap"]
+	path = 3rdparty/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap

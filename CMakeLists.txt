@@ -1,0 +1,18 @@
+cmake_minimum_required(VERSION 3.5.0)
+project(GameZero VERSION 0.0.0.0 LANGUAGES CXX C)
+
+# configure variables
+set(GAMEZERO_LOCAL_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+set(GAMEZERO_LOCAL_LIB_DIR ${PROJECT_SOURCE_DIR}/lib)
+set(GAMEZERO_BUILD_DIR ${PROJECT_SOURCE_DIR}/build)
+set(GAMEZERO_SHADERS_DIR ${PROJECT_SOURCE_DIR}/shaders)
+set(GAMEZERO_CMAKE_DIR ${PROJECT_SOURCE_DIR}/cmake)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# game engine
+add_subdirectory(source)
+
+# main executable
+add_executable(GameZero source/main.cpp)
+target_link_libraries(GameZero game_zero)
