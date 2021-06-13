@@ -21,5 +21,6 @@ layout( push_constant ) uniform constants
 void main()
 {
 	gl_Position = cameraData.proj * cameraData.view * cameraData.model * vec4(vPosition, 1.0f);
+	// gl_Position = cameraData.model * cameraData.view * cameraData.proj * vec4(vPosition, 1.0f);
 	outColor = vColor;
 }

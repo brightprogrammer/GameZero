@@ -11,7 +11,7 @@ namespace GameZero{
     constexpr static uint32_t GameZeroVersionNumber = VK_MAKE_VERSION(0, 0, 0);
 
     // enable double buffering
-    #define GAMEZERO_ENABLE_DOUBLE_BUFFERING
+    // #define GAMEZERO_ENABLE_DOUBLE_BUFFERING
 
     /// dictates framebuffering level : double, triple etc
     constexpr static size_t FrameOverlapCount =

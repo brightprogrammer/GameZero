@@ -60,7 +60,7 @@ namespace GameZero{
         Material* material;
 
         /// transform or model matrix
-        glm::mat4 transform = glm::identity<glm::mat4>();
+        glm::mat4 transform = glm::mat4(1.0f);
     };
 
     // camera data
