@@ -6,5 +6,7 @@
 #include "log.hpp"
 #include "vulkan_initializers.hpp"
 #include "file.hpp"
+#include "vk_mem_alloc.h"
+#include "tiny_obj_loader.h"
 
 #endif//GAMEZERO_UTILS_HPP

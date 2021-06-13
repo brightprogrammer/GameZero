@@ -1,5 +1,9 @@
 #!/bin/zsh
 
+# --------------- WARNING --------- WARNING -----------------#
+#           run this script from project root only           #
+# -----------------------------------------------------------#
+
 # set project root directory
 PROJECT_ROOT_DIRECTORY=$PWD
 # project submodule directory
@@ -71,9 +75,15 @@ BuildSubmodule(){
 
 # # build Vulkan-Header
 # BuildSubmodule Vulkan-Headers -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY
+
 # # build Vulkan-Loader
 # BuildSubmodule Vulkan-Loader -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY -DVULKAN_HEADERS_INSTALL_DIR=$PROJECT_ROOT_DIRECTORY
+
 # # build SDL
 # BuildSubmodule SDL -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY
+
 # build vk-bootstrap
-BuildSubmodule vk-bootstrap -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY
+# BuildSubmodule vk-bootstrap -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY
+
+# build glm
+# BuildSubmodule glm -DCMAKE_INSTALL_PREFIX=$PROJECT_ROOT_DIRECTORY
