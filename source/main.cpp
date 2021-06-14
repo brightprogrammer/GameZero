@@ -26,14 +26,14 @@ int main(){
     // set window event callback
     // window.WindowEventCallback = WindowEventCallback;
 
-    glm::vec3 camPos = glm::vec3(5.0f, 5.0f, 5.0f);
+    glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 20.0f);
     glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
-    glm::vec3 camFront = glm::vec3(-1.0f, -1.0f, -1.0f);
+    glm::vec3 camFront = glm::vec3(0.0f, 0.0f, 1.0f);
 
     glm::mat4 view;
     glm::vec3 direction;
 
-    constexpr float playerSpeed = 0.1f;
+    constexpr float playerSpeed = 0.2f;
     constexpr float sensitivity = 0.2f;
     float fov = 45.f;
 
@@ -53,10 +53,8 @@ int main(){
         // mouse motion event
         if(event.type == SDL_MOUSEMOTION){
             float xoffset = float(event.motion.xrel) * sensitivity;
-            float yoffset = float(event.motion.yrel) * sensitivity;
-
-            LOG(DEBUG, "MOUSE MOTION [%lu]", renderer.frameNumber);
-
+            float yoffset = float(-event.motion.yrel) * sensitivity;
+            
             yaw     += xoffset;
             pitch   += yoffset;
 

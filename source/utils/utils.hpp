@@ -8,5 +8,6 @@
 #include "file.hpp"
 #include "vk_mem_alloc.h"
 #include "tiny_obj_loader.h"
+#include "stb_image.h"
 
 #endif//GAMEZERO_UTILS_HPP

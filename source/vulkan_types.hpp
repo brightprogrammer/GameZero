@@ -43,7 +43,7 @@ namespace GameZero{
         CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo,
             &newBuffer.buffer,
             &newBuffer.allocation,
-            nullptr), "Failed to Allocated Buffer");
+            nullptr), "Failed to allocate Buffer");
 
         return newBuffer;
     }
@@ -82,6 +82,11 @@ namespace GameZero{
         AllocatedBuffer cameraBuffer;
 
         VkDescriptorSet descriptorSet;
+    };
+
+    struct UploadContext{
+        VkFence uploadFence;
+        VkCommandPool commandPool;
     };
 }
 

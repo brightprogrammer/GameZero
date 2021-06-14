@@ -31,13 +31,13 @@ namespace GameZero {
         glm::vec3 position;
         glm::vec3 normal;
         glm::vec3 color;
+        glm::vec2 uv;
 
         VertexInputDescription static GetVertexDescription();
     };
 
     /// mesh
     class Mesh{
-        VmaAllocator allocator;
     public:
         /// vertices of this mesh
         std::vector<Vertex> vertices;
@@ -51,14 +51,6 @@ namespace GameZero {
         * @param filename : input filename
         */
         bool LoadMeshFromOBJ(const char* filename);
-
-        /// upload mesh to gpu
-        void UploadMeshToGPU(const VmaAllocator& allocator);
-
-        /// destroy mesh
-        void DestroyMesh(){
-            vmaDestroyBuffer(allocator, vertexBuffer.buffer, vertexBuffer.allocation);
-        }
     };
 
 }

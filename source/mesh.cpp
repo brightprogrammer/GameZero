@@ -1,4 +1,5 @@
 #include "mesh.hpp"
+#include "glm/ext/quaternion_geometric.hpp"
 #include "utils/assert.hpp"
 #include "vulkan/vulkan_core.h"
 #include "cstring"
@@ -42,10 +43,18 @@ GameZero::VertexInputDescription GameZero::Vertex::GetVertexDescription(){
 	colorAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
 	colorAttribute.offset = offsetof(Vertex, color);
 
+	//UV will be stored at Location 3
+	VkVertexInputAttributeDescription uvAttribute = {};
+	uvAttribute.binding = 0;
+	uvAttribute.location = 3;
+	uvAttribute.format = VK_FORMAT_R32G32_SFLOAT;
+	uvAttribute.offset = offsetof(Vertex, uv);
+
 	description.attributes.push_back(positionAttribute);
 	description.attributes.push_back(normalAttribute);
 	description.attributes.push_back(colorAttribute);
-	
+	description.attributes.push_back(uvAttribute);
+
 	return description;
 }
 
@@ -63,7 +72,7 @@ bool GameZero::Mesh::LoadMeshFromOBJ(const char *filename){
 	std::string err;
 
     //load the OBJ file
-	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, nullptr);
+	tinyobj::LoadObj(&attrib, &shapes, &materials, &warn, &err, filename, "../mesh/");
     //make sure to output the warnings to the console, in case there are issues with the file
 	if (!warn.empty()) {
 		LOG(WARNING, "%s", warn.c_str());
@@ -100,18 +109,23 @@ bool GameZero::Mesh::LoadMeshFromOBJ(const char *filename){
 				tinyobj::real_t ny = attrib.normals[3 * idx.normal_index + 1];
 				tinyobj::real_t nz = attrib.normals[3 * idx.normal_index + 2];
 
+				// tinyobj::real_t cx = attrib.colors[3 * idx.vertex_index + 0];
+				// tinyobj::real_t cy = attrib.colors[3 * idx.vertex_index + 1];
+				// tinyobj::real_t cz = attrib.colors[3 * idx.vertex_index + 2];
+
                 //copy it into our vertex
 				Vertex new_vert;
-				new_vert.position.x = vx;
-				new_vert.position.y = vy;
-				new_vert.position.z = vz;
+				new_vert.position = glm::vec3(vx, vy, vz);
+				new_vert.normal = glm::vec3(nx, ny, nz);
+                // new_vert.color = glm::vec3(cx, cy, cz);
+				// new_vert.color = glm::normalize(glm::vec3(rand(), rand(), rand()));
+				new_vert.color = new_vert.normal;
 
-				new_vert.normal.x = nx;
-				new_vert.normal.y = ny;
-                new_vert.normal.z = nz;
+				tinyobj::real_t ux = attrib.texcoords[2 * idx.texcoord_index + 0];
+				tinyobj::real_t uy = attrib.texcoords[2 * idx.texcoord_index + 1];
 
-                //we are setting the vertex color as the vertex normal. This is just for display purposes
-                new_vert.color = new_vert.normal;
+				new_vert.uv.x = ux;
+				new_vert.uv.y = 1-uy;
 
 				vertices.push_back(new_vert);
 			}
@@ -120,25 +134,4 @@ bool GameZero::Mesh::LoadMeshFromOBJ(const char *filename){
 	}
 
     return true;
-}
-
-void GameZero::Mesh::UploadMeshToGPU(const VmaAllocator& allocator){
-	this->allocator = allocator;
-
-    VkBufferCreateInfo  bufferInfo = {};
-	bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	bufferInfo.size = vertices.size() * sizeof(Vertex);
-	bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-
-	VmaAllocationCreateInfo allocInfo = {};
-	allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
-
-	// create buffer
-	CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &vertexBuffer.buffer, &vertexBuffer.allocation, nullptr), "Failed to create vertex buffer")
-
-	// copy vertex data
-	void* data;
-	vmaMapMemory(allocator, vertexBuffer.allocation, &data);
-	memcpy(data, vertices.data(), vertices.size() * sizeof(Vertex));
-	vmaUnmapMemory(allocator, vertexBuffer.allocation);
 }
