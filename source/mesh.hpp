@@ -12,7 +12,7 @@
 #ifndef GAMEZERO_MESH_HPP
 #define GAMEZERO_MESH_HPP
 
-#include "utils/utils.hpp"
+#include "utils.hpp"
 #include "vulkan/vulkan_core.h"
 #include "vulkan_types.hpp"
 

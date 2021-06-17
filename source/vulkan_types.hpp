@@ -3,10 +3,10 @@
 
 #include "common.hpp"
 #include "glm/ext/matrix_transform.hpp"
-#include "utils/assert.hpp"
-#include "utils/utils.hpp"
+#include "utils.hpp"
 #include "vulkan/vulkan_core.h"
 #include <memory>
+#include "vulkan/vk_mem_alloc.h"
 
 namespace GameZero{
     /// represents allocated buffer by vulkan memory allocator
@@ -50,6 +50,7 @@ namespace GameZero{
 
     /// material
     struct Material{
+        VkDescriptorSet textureSet = VK_NULL_HANDLE;
         VkPipeline pipeline;
         VkPipelineLayout pipelineLayout;
     };

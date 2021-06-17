@@ -4,9 +4,9 @@
 #include "common.hpp"
 #include "vulkan/vulkan_core.h"
 #include "window.hpp"
-#include "utils/utils.hpp"
-#include "device.hpp"
-#include "swapchain.hpp"
+#include "utils.hpp"
+#include "vulkan/device.hpp"
+#include "vulkan/swapchain.hpp"
 #include "mesh.hpp"
 #include <string>
 #include <unordered_map>
@@ -115,6 +115,9 @@ namespace GameZero{
         /// gpu immediate upload context
         /// used when uploading data to gpu using staging buffers
         UploadContext uploadContext;
+
+        /// descriptor set layout for uploading a single texture at a time
+        VkDescriptorSetLayout singleTextureSetLayout;
 
         /// map of textures with their unique name
         std::unordered_map<std::string, Texture> textures;

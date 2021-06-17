@@ -1,13 +1,17 @@
 #include "SDL2/SDL_events.h"
 #include "SDL2/SDL_keycode.h"
+#include "SDL2/SDL_mouse.h"
 #include "gamezero.hpp"
 #include "glm/ext/matrix_clip_space.hpp"
 #include "glm/ext/matrix_transform.hpp"
 #include "glm/ext/quaternion_geometric.hpp"
+#include "mesh.hpp"
 #include "renderer.hpp"
 #include "utils/assert.hpp"
+#include "vulkan/globals.hpp"
 #include "vulkan/vulkan_core.h"
 #include "window.hpp"
+#include "app_state.hpp"
 
 #include <memory>
 #include <unordered_map>
@@ -18,13 +22,24 @@ bool WindowEventCallback(const GameZero::WindowEvent& event, const GameZero::Win
 }
 
 int main(){
-    GameZero::Window window(GameZero::GameZeroApplicationName, GameZero::Vector2u(800, 600));
+    GameZero::Window window(GameZero::GameZeroApplicationName, GameZero::Vector2u(1366, 768));
+    
+    GameZero::ApplicationState *app = GameZero::ApplicationState::Get();
+    app->name = "Hello";
+    app->version = 0;
+    app->mainWindow = &window;
+
+    GameZero::GetVulkanInstance();
+    GameZero::GetVulkanInstance().destroy();
+
     window.WindowEventCallback = WindowEventCallback;
 
     GameZero::Renderer renderer(window);
 
     // set window event callback
     // window.WindowEventCallback = WindowEventCallback;
+
+    SDL_Cursor *cursor = SDL_GetCursor();
 
     glm::vec3 camPos = glm::vec3(0.0f, 0.0f, 20.0f);
     glm::vec3 camUp = glm::vec3(0.0f, 1.0f, 0.0f);
@@ -33,12 +48,14 @@ int main(){
     glm::mat4 view;
     glm::vec3 direction;
 
-    constexpr float playerSpeed = 0.2f;
-    constexpr float sensitivity = 0.2f;
+    constexpr float playerSpeed = 0.5f;
+    constexpr float sensitivity = 0.5f;
     float fov = 45.f;
 
     float yaw = -90.0f;
     float pitch = 89.f;
+
+    GameZero::Mesh mesh;
 
     while(window.isOpen){
         // window.Hand1leEvents();
@@ -54,7 +71,7 @@ int main(){
         if(event.type == SDL_MOUSEMOTION){
             float xoffset = float(event.motion.xrel) * sensitivity;
             float yoffset = float(-event.motion.yrel) * sensitivity;
-            
+
             yaw     += xoffset;
             pitch   += yoffset;
 

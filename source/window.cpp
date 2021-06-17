@@ -4,8 +4,9 @@
 #include "SDL2/SDL_events.h"
 #include "SDL2/SDL_stdinc.h"
 #include "SDL2/SDL_video.h"
-#include "utils/utils.hpp"
-#include "math/math.hpp"
+#include "utils.hpp"
+#include "math.hpp"
+#include "vulkan/globals.hpp"
 #include "vulkan/vulkan_core.h"
 #include <cstdio>
 
@@ -30,7 +31,7 @@ GameZero::Window::Window(){
 GameZero::Window::Window(const char* windowTitle, const Vector2u& windowSize) : title(windowTitle), size(windowSize){
     initSDLVideo();
     WindowEventCallback = DefaultWindowEventCallback;
-    SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN;
+    SDL_WindowFlags windowFlags = SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN);
     
     window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, size.x, size.y, windowFlags);
     ASSERT(window != nullptr, "FAILED TO CREATE WINDOW : [ Window Title %s ] ", SDL_GetError());
@@ -66,8 +67,10 @@ void GameZero::Window::Create(const char *windowTitle, const Vector2u &windowSiz
 }
 
 // create vulkan surface
-void GameZero::Window::CreateSurface(const VkInstance &instance){
-    ASSERT(SDL_Vulkan_CreateSurface(window, instance, &surface) == SDL_TRUE, "SURFACE CREATION FAILED : %s", SDL_GetError());
+void GameZero::Window::CreateSurface(){
+    VkSurfaceKHR tempSurface;
+    ASSERT(SDL_Vulkan_CreateSurface(window, GetVulkanInstance(), &tempSurface) == SDL_TRUE, "SURFACE CREATION FAILED : %s", SDL_GetError());
+    surface = tempSurface;
 }
 
 void GameZero::Window::HandleEvents(){

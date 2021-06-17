@@ -1,14 +1,10 @@
 #ifndef GAMEZERO_WINDOW_HPP
 #define GAMEZERO_WINDOW_HPP
 
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_vulkan.h>
-#include <vulkan/vulkan.h>
-
-#include "SDL2/SDL_events.h"
-#include "SDL2/SDL_video.h"
-#include "math/vector.hpp"
-#include "vulkan/vulkan_core.h"
+#include "common.hpp"
+#include "math.hpp"
+#include "vulkan/globals.hpp"
+#include "vulkan/swapchain.hpp"
 
 namespace GameZero{
     
@@ -42,7 +38,9 @@ namespace GameZero{
         /// this window title
         const char* title;
         /// vulkan surface handle
-        VkSurfaceKHR surface = VK_NULL_HANDLE;
+        vk::SurfaceKHR surface;
+        /// this window's swapchain
+        Swapchain swachain;
         /// check if window is open
         bool isOpen = true;
         /// sdl window id
@@ -75,16 +73,12 @@ namespace GameZero{
          */
         void Create(const char* title, const Vector2u& size);
 
-        /**
-         * @brief Create a Vulkan Surface for this window
-         * 
-         * @param instance 
-         */
-        void CreateSurface(const VkInstance& instance);
+        /// create surface for this window
+        void CreateSurface();
 
         /// destroy created surface
-        inline void DestroySurface(const VkInstance& instance){
-            vkDestroySurfaceKHR(instance, surface, nullptr);
+        inline void DestroySurface(){
+            GetVulkanInstance().destroySurfaceKHR(surface);
         }
 
         /**

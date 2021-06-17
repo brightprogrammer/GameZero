@@ -24,12 +24,14 @@ CompileShader shader.frag frag.spv
 
 # build game
 cd build
-# rm -fv CMakeLists.txtecho "building game"
+rm -fv CMakeLists.txtecho "building game"
 
 # generate makefile
 cmake .. -G Ninja
-# build
-ninja
-# run game
-./GameZero
 cd ..
+ln -sfv build/compile_commands.json compile_commands.json
+# build
+# ninja
+# run game
+# ./GameZero
+# cd ..

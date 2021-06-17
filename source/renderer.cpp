@@ -1,7 +1,7 @@
 #include "renderer.hpp"
 #include "texture.hpp"
 #include "utils/assert.hpp"
-#include "utils/utils.hpp"
+#include "utils.hpp"
 #include "utils/vulkan_initializers.hpp"
 #include "vulkan/vulkan_core.h"
 #include "shader.hpp"
@@ -122,8 +122,8 @@ void GameZero::Renderer::Initialize(){
     InitPipelineLayouts();
     InitPipelines();
     InitMesh();
-    InitScene();
     LoadImages();
+    InitScene();
 }
 
 // initialize renderer
@@ -496,10 +496,12 @@ void GameZero::Renderer::Draw(){
 
 // inpit pipeline layouts
 void GameZero::Renderer::InitPipelineLayouts(){
+    VkDescriptorSetLayout setLayouts[] = {descriptorSetLayout, singleTextureSetLayout};
+
     VkPipelineLayoutCreateInfo layoutInfo = {};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = 1;
-    layoutInfo.pSetLayouts = &descriptorSetLayout;
+    layoutInfo.setLayoutCount = 2;
+    layoutInfo.pSetLayouts = setLayouts;
     layoutInfo.pushConstantRangeCount = 0;
     
     CHECK_VK_RESULT(vkCreatePipelineLayout(device.logical, &layoutInfo, nullptr, &pipelineLayout), "Failed to create Pipeline Layout");
@@ -662,12 +664,14 @@ void GameZero::Renderer::InitMesh(){
     // TODO : DO SOMETHING ABOUT THIS PATH
     mesh.LoadMeshFromOBJ("../mesh/lost_empire.obj");
     UploadMeshToGPU(&mesh, allocator);
-    meshes["GolemMan"] = mesh;
+    meshes["TestMesh"] = mesh;
 }
 
 // create a new material for renderer
 GameZero::Material* GameZero::Renderer::CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string &name){
-    Material material{pipeline, layout};
+    Material material;
+    material.pipeline = pipeline;
+    material.pipelineLayout = pipelineLayout;
     materials[name] = material;
     return &materials[name];
 }
@@ -727,18 +731,61 @@ void GameZero::Renderer::DrawObjects(VkCommandBuffer cmd, RenderObject *firstObj
             lastMesh = object.mesh;
 		}
 
+        if(object.material->textureSet != VK_NULL_HANDLE){
+            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &object.material->textureSet, 0, nullptr);
+        }
+
 		//we can now draw
 		vkCmdDraw(cmd, object.mesh->vertices.size(), 1, 0, 0);
 	}   
 }
 
 void GameZero::Renderer::InitScene(){
+    VkSamplerCreateInfo samplerInfo = {};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
+
+    VkSampler blockySampler;
+    CHECK_VK_RESULT(vkCreateSampler(device.logical, &samplerInfo, nullptr, &blockySampler), "Failed to create sampler")
+    PushFunction([=](){
+        vkDestroySampler(device.logical, blockySampler, nullptr);
+        LOG(INFO, "Destroyed Sampler");
+    });
+
     RenderObject object;
-    object.mesh = GetMesh("GolemMan");
+    object.mesh = GetMesh("TestMesh");
     if(!object.mesh) LOG(DEBUG, "Failed to Get Mesh");
 
     object.material = GetMaterial("default");
     if(!object.material) LOG(DEBUG, "Failed to Get Material");
+
+    VkDescriptorSetAllocateInfo allocInfo = {};
+	allocInfo.pNext = nullptr;
+	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	allocInfo.descriptorPool = descriptorPool;
+	allocInfo.descriptorSetCount = 1;
+	allocInfo.pSetLayouts = &singleTextureSetLayout;
+
+    CHECK_VK_RESULT(vkAllocateDescriptorSets(device.logical, &allocInfo, &object.material->textureSet), "Failed to allocate Descriptor Set");
+
+    VkDescriptorImageInfo imageBufferInfo = {};
+	imageBufferInfo.sampler = blockySampler;
+	imageBufferInfo.imageView = textures["empire_diffuse"].imageView;
+	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+    VkWriteDescriptorSet textureWrite = {};
+    textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    textureWrite.descriptorCount = 1;
+    textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureWrite.dstSet = object.material->textureSet;
+    textureWrite.dstBinding = 0;
+    textureWrite.pImageInfo = &imageBufferInfo;
+    
+    vkUpdateDescriptorSets(device.logical, 1, &textureWrite, 0, nullptr);
 
     renderables.push_back(object);
 }
@@ -747,7 +794,8 @@ void GameZero::Renderer::InitDescriptors(){
     //create a descriptor pool that will hold 10 uniform buffers
 	std::vector<VkDescriptorPoolSize> sizes =
 	{
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 }
+		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
+        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10}
 	};
 
 	VkDescriptorPoolCreateInfo pool_info = {};
@@ -768,10 +816,10 @@ void GameZero::Renderer::InitDescriptors(){
 	//information about the binding.
 	VkDescriptorSetLayoutBinding camBufferBinding = {};
 	camBufferBinding.binding = 0;
+    // this variable is for passing array of data
 	camBufferBinding.descriptorCount = 1;
 	// it's a uniform buffer binding
 	camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
 	// we use it from the vertex shader
 	camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
@@ -785,13 +833,32 @@ void GameZero::Renderer::InitDescriptors(){
 	//point to the camera buffer binding
 	setInfo.pBindings = &camBufferBinding;
 
-	CHECK_VK_RESULT(vkCreateDescriptorSetLayout(device.logical, &setInfo, nullptr, &descriptorSetLayout), "Failed to create Descriptor Set Layout");
+    CHECK_VK_RESULT(vkCreateDescriptorSetLayout(device.logical, &setInfo, nullptr, &descriptorSetLayout), "Failed to create Descriptor Set Layout");
     // deletor
     PushFunction([=](){
         vkDestroyDescriptorSetLayout(device.logical, descriptorSetLayout, nullptr);
         LOG(INFO, "Destroyed Descriptor Set Layout");
     });
-    LOG(INFO, "Create Descriptor Set Layout");
+    LOG(INFO, "Created Descriptor Set Layout");
+
+    VkDescriptorSetLayoutBinding textureBinding = {};
+    textureBinding.binding = 0;
+    textureBinding.descriptorCount = 1;
+    textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+
+    VkDescriptorSetLayoutCreateInfo textureSetLayoutInfo = {};
+    textureSetLayoutInfo.bindingCount = 1;
+    textureSetLayoutInfo.pBindings = &textureBinding;
+    textureSetLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+
+    CHECK_VK_RESULT(vkCreateDescriptorSetLayout(device.logical, &textureSetLayoutInfo, nullptr, &singleTextureSetLayout), "Failed to create Descriptor Set Layout");
+    // deletor
+    PushFunction([=](){
+        vkDestroyDescriptorSetLayout(device.logical, singleTextureSetLayout, nullptr);
+        LOG(INFO, "Destroyed Descriptor Set Layout");
+    });
+    LOG(INFO, "Created Descriptor Set Layout");
 
     for(auto& frame : frames){
         frame.cameraBuffer = CreateBuffer(allocator, sizeof(GPUCameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
@@ -973,13 +1040,13 @@ void GameZero::Renderer::UploadMeshToGPU(Mesh* mesh, bool useStaging){
 }
 
 void GameZero::Renderer::LoadImages(){
-    Texture grass;
-    LoadImageFromFile(this, "../assets/textures/lost_empire-RGBA.png", grass.image);
+    Texture texture;
+    LoadImageFromFile(this, "../assets/textures/lost_empire-RGBA.png", texture.image);
     
     VkImageViewCreateInfo imageViewInfo = {};
     imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
     imageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
-    imageViewInfo.image = grass.image.image;
+    imageViewInfo.image = texture.image.image;
     imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
     imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
     imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
@@ -992,11 +1059,11 @@ void GameZero::Renderer::LoadImages(){
     imageViewInfo.subresourceRange.levelCount = 1;
 
     // create image view
-    CHECK_VK_RESULT(vkCreateImageView(device.logical, &imageViewInfo, nullptr, &grass.imageView), "Failed to create Wmage View");
+    CHECK_VK_RESULT(vkCreateImageView(device.logical, &imageViewInfo, nullptr, &texture.imageView), "Failed to create Wmage View");
     PushFunction([=](){
-        vkDestroyImageView(device.logical, grass.imageView, nullptr);
+        vkDestroyImageView(device.logical, texture.imageView, nullptr);
         LOG(INFO, "Destroted Image View");
     });
 
-    textures["grass"] = grass;
+    textures["empire_diffuse"] = texture;
 }
