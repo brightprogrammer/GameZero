@@ -2,7 +2,8 @@
 #define GAMEZERO_TEXTURE_HPP
 
 #include "common.hpp"
-#include "vulkan_types.hpp"
+#include "vulkan/types.hpp"
+#include "vulkan/image.hpp"
 
 namespace GameZero{
 

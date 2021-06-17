@@ -1,8 +1,21 @@
-#ifndef GAMEZERO_SWAPCHAIN_HPP
-#define GAMEZERO_SWAPCHAIN_HPP
+/**
+ * @file swapchain.hpp
+ * @author Siddharth Mishra (bshock665@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2021-06-15
+ * 
+ * @copyright Copyright 2021 Siddharth Mishra. All Rights Reserved
+ * 
+ */
+
+#ifndef GAMEZERO_VULKAN_SWAPCHAIN_HPP
+#define GAMEZERO_VULKAN_SWAPCHAIN_HPP
 
 #include "../common.hpp"
 #include "device.hpp"
+#include "image.hpp"
+#include "surface.hpp"
 
 namespace GameZero{
 
@@ -11,43 +24,39 @@ namespace GameZero{
 
         /**
          * @brief Construct a new Swapchain object
-         *
-         * @param device
+         * 
+         * @param surface 
+         * @param device 
          */
-        Swapchain(const Device& device){
-            Create(device);
+        Swapchain(Surface& surface, const Device& device){
+            Create(surface, device);
         }
 
         /**
-         * @brief Create Swapchain
-         *
-         * @param device
+         * @brief Create the surface
+         * 
+         * @param surface 
+         * @param device 
          */
-        void Create(const Device& device);
-
-        /// pointer to device used for creation of swapchain
-        const Device *usedDevice;
+        void Create(Surface& surface, const Device& device);
 
         /// swapchain handle
         vk::SwapchainKHR swapchain;
-        /// image format of images in swapchain
-        vk::Format imageFormat;
-        /// size of images in swapchain
-        vk::Extent2D imageExtent;
         /// image handles in swapchain
         std::vector<vk::Image> images;
-        /// image views of images in swapchain
+        /// image views for images in swapchain
         std::vector<vk::ImageView> imageViews;
         /// number of images in swapchain
         uint32_t imageCount;
+        /// swapchain image extent
+        vk::Extent2D imageExtent;
+        /// swapchain image format
+        vk::Format imageFormat;
 
         /// destroy swapchain and image views
-        void Destroy(){
-            for(const auto& imageView : imageViews) vkDestroyImageView(usedDevice->logical, imageView, nullptr);
-            vkDestroySwapchainKHR(usedDevice->logical, swapchain, nullptr);
-        }
+        void Destroy(const Device& device);
     };
 
 }
 
-#endif//GAMEZERO_SWAPCHAIN_HPP
+#endif//GAMEZERO_VULKAN_SWAPCHAIN_HPP

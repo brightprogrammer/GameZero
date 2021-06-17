@@ -6,6 +6,7 @@
 #include <array>
 #include "../window.hpp"
 #include <SDL2/SDL_vulkan.h>
+#include "../utils.hpp"
 
 using namespace GameZero;
 
@@ -55,9 +56,6 @@ void CreateInstance(){
 
     // create instance
     instance = vk::createInstance(icInfo);
-
-    // create surface after instance creation
-    ASSERT(SDL_Vulkan_CreateSurface(GetMainWindow()->window, instance, &GetMainWindow()->surface), "Failed to create Vulkan Surface");
 }
 
 // return created instance

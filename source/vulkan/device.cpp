@@ -1,3 +1,14 @@
+/**
+ * @file device.cpp
+ * @author Siddharth Mishra (bshock665@gmail.com)
+ * @brief 
+ * @version 0.1
+ * @date 2021-06-15
+ * 
+ * @copyright Copyright 2021 Siddharth Mishra. All Rights Reserved
+ * 
+ */
+
 #include "device.hpp"
 #include "globals.hpp"
 #include "../utils.hpp"
@@ -133,7 +144,7 @@ int32_t GetPhysicalDeviceSurfaceSupportQueueIndex(const vk::PhysicalDevice &phys
 }
 
 // select best physical device
-void GameZero::Device::SelectBestPhysicalDevice(){
+void GameZero::Device::SelectBestPhysicalDevice(const Surface& surface){
     // device list
     auto physicalDeviceList = GetVulkanInstance().enumeratePhysicalDevices();
             
@@ -144,7 +155,7 @@ void GameZero::Device::SelectBestPhysicalDevice(){
 
     // sort physical device
     for(const auto& gpu : physicalDeviceList){
-        uint32_t maxScore = RatePhysicalDevice(gpu, GetMainWindow()->surface);
+        uint32_t maxScore = RatePhysicalDevice(gpu, surface.surface);
         if(score < maxScore){
             score = maxScore;
             physical = gpu; // selected device
@@ -153,7 +164,7 @@ void GameZero::Device::SelectBestPhysicalDevice(){
 }
 
 // create logical device
-void GameZero::Device::CreateDevice(){
+void GameZero::Device::CreateDevice(const Surface& surface){
     // get graphics queue index
     int32_t tmp = GetPhysicalDeviceQueueFamilyIndex(physical, vk::QueueFlagBits::eGraphics);
     if(tmp == -1) {
@@ -161,7 +172,7 @@ void GameZero::Device::CreateDevice(){
     } else graphicsQueueIndex = static_cast<uint32_t>(tmp);
 
     // get presentation queue index
-    tmp = GetPhysicalDeviceSurfaceSupportQueueIndex(physical, GetMainWindow()->surface);
+    tmp = GetPhysicalDeviceSurfaceSupportQueueIndex(physical, surface.surface);
     if(tmp == -1) {
         ASSERT(false, "Failed to find surface presentation supporting queue family on selected Physical Device");
     } else presentQueueIndex = static_cast<uint32_t>(tmp);
@@ -219,8 +230,15 @@ void GameZero::Device::CreateAllocator(){
 }
 
 // select best physical device
-GameZero::Device::Device(){
-    SelectBestPhysicalDevice();
-    CreateDevice();
+GameZero::Device::Device(const Surface& surface){
+    SelectBestPhysicalDevice(surface);
+    CreateDevice(surface);
+    CreateAllocator();
+}
+
+// create device
+void GameZero::Device::Create(const Surface &surface){
+    SelectBestPhysicalDevice(surface);
+    CreateDevice(surface);
     CreateAllocator();
 }

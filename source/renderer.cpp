@@ -3,6 +3,7 @@
 #include "utils/assert.hpp"
 #include "utils.hpp"
 #include "utils/vulkan_initializers.hpp"
+#include "vulkan/vk_mem_alloc.hpp"
 #include "vulkan/vulkan_core.h"
 #include "shader.hpp"
 
@@ -13,106 +14,25 @@ GameZero::Renderer::Renderer(GameZero::Window& window) : window(window){
 
     // initialize vulkan
     Initialize();
-    
-    // keep track of renderer instances
-    objectCounter++;
 }
 
 GameZero::Renderer::~Renderer(){
     // wait for all device operations to complete
-    vkDeviceWaitIdle(device.logical);
+    device.logical.waitIdle();
 
-    // destroy
-    FlushDeletors();
-
-    // keep track of renderer instances
-    objectCounter--;
-
-    // // destory pipeline layout
-    // vkDestroyPipelineLayout(device.logical, pipelineLayout, nullptr);
-
-    // // destroy pipeline
-    // vkDestroyPipeline(device.logical, pipeline, nullptr);
-
-    // // destroy upload context
-    // vkDestroyFence(device.logical, uploadContext.uploadFence, nullptr);
-    // vkDestroyCommandPool(device.logical, uploadContext.commandPool, nullptr);
-
-    // for(const auto& frame : frames){
-    //     // destory sync structures
-    //     vkDestroyFence(device.logical, frame.renderFence, nullptr);
-    //     vkDestroySemaphore(device.logical, frame.renderSemaphore, nullptr);
-    //     vkDestroySemaphore(device.logical, frame.presentSemaphore, nullptr);
-
-    //     // destroy command pool
-    //     // this automatically destroys allocated command buffers
-    //     vkDestroyCommandPool(device.logical, frame.commandPool, nullptr);
-    //     LOG(INFO, "Vulkan Command Pool destroyed [ Renderer Window Name : %s ]", window.title)
-
-    //     vmaDestroyBuffer(allocator, frame.cameraBuffer.buffer, frame.cameraBuffer.allocation);
-    // }
-
-    // // destroy descriptor set layout
-    // vkDestroyDescriptorSetLayout(device.logical, descriptorSetLayout, nullptr);
-    // LOG(INFO, "Descriptor Set Layout destroyed");
-
-    // // destroy descriptor pool
-    // vkDestroyDescriptorPool(device.logical, descriptorPool, nullptr);
-    // LOG(INFO, "Descriptor Pool destroyed");
-
-    // // destroy framebuffers
-    // for(const auto& fb : renderPass.framebuffers) vkDestroyFramebuffer(device.logical, fb, nullptr);
-    // LOG(INFO, "Vulkan Framebuffers destroyed [ Renderer Window Name : %s ]", window.title)
-
-    // // destory renderpass
-    // vkDestroyRenderPass(device.logical, renderPass.renderPass, nullptr);
-    // LOG(INFO, "Vulkan Render Pass destroyed [ Renderer Window Name : %s ]", window.title)
-
-    for(const auto& imageView : swapchain.imageViews) vkDestroyImageView(device.logical, imageView, nullptr);
-    vkDestroySwapchainKHR(device.logical, swapchain.swapchain, nullptr);
-    LOG(INFO, "Vulkan Swapchain destroyed [ Renderer Window Name : %s ]", window.title)
-    
-    // // destroy depth image
-    // vkDestroyImageView(device.logical, depthImageView, nullptr);
-    // vmaDestroyImage(allocator, depthImage.image, depthImage.allocation);
-
-    // // destroy mesh before destroying logical device
-    // for(const auto& [id, mesh] : meshes){
-    //     vmaDestroyBuffer(allocator, mesh.vertexBuffer.buffer, mesh.vertexBuffer.allocation);
-    // }
-
-    // destroy vulkan memory allocator before destroying logical device
-    vmaDestroyAllocator(allocator);
-    LOG(INFO, "Memory Allocator Destroyed [ Renderer Window Name : %s]", window.title);
-
-    vkDestroyDevice(device.logical, nullptr);
-    LOG(INFO, "Vulkan Device destroyed [ Renderer Window Name : %s ]", window.title)
-    
-    vkDestroySurfaceKHR(instance, window.surface, nullptr);
-    LOG(INFO, "Vulkan Surface destroyed [ Renderer Window Name : %s ]", window.title)
-
-    // if this is the last renderer, then destroy vulkan instance
-    if(objectCounter == 0){
-        vkb::destroy_debug_utils_messenger(instance, debugMessenger);
-        LOG(INFO, "Vulkan Debug Messenger destroyed");
-
-        vkDestroyInstance(instance, nullptr);
-        LOG(INFO, "Vulkan Instance destroyed");
-    }
-
-    LOG(INFO, "Renderer destroyed [ Renderer Window Name :  %s ]", window.title)
+    // destroy swapchain
+    swapchain.Destroy(device);
+    // destroy device
+    device.Destroy();
+    // destroy surface
+    surface.Destroy();
 }
 
-void GameZero::Renderer::FlushDeletors(){
-    for(auto it = deletors.rbegin(); it != deletors.rend(); it++){
-        (*it)();
-    }
 
-    deletors.clear();
-}
-
+// initialize renderer
 void GameZero::Renderer::Initialize(){
-    InitVulkan();
+    InitSurface();
+    InitDevice();
     InitCommands();
     InitDepthImage();
     InitRenderPass();
@@ -126,139 +46,79 @@ void GameZero::Renderer::Initialize(){
     InitScene();
 }
 
-// initialize renderer
-void GameZero::Renderer::InitVulkan(){
-    // create instance ------------------------------------------
-    // WARNING : Might create problem when working with multiple renderers
-    // next instance of GameZero::Renderer will have an empty vkbInstance!
-    // that will fail device selection and further steps!
-    vkb::Instance vkbInstance;
-    if(instance == VK_NULL_HANDLE){
-        vkb::InstanceBuilder instBuilder;
-        auto instRet = instBuilder  .set_app_name(GameZero::GameZeroApplicationName)
-                                    .request_validation_layers(true)
-                                    .require_api_version(1, 1, 0)
-                                    .use_default_debug_messenger()
-                                    .build();
-        vkbInstance = instRet.value();
+// create surface for given window to this renderer
+void GameZero::Renderer::InitSurface(){
+    surface.Create(window);
+}
 
-        instance = vkbInstance.instance;
-        debugMessenger = vkbInstance.debug_messenger;
-        LOG(INFO, "Vulkan Instance created");
-    }
-    
-    // create surface -------------------------------------------
-    window.CreateSurface(instance);
-    LOG(INFO, "Vulkan Surface created [ Renderer Window Name : %s ]", window.title);
+// init device for the renderer
+void GameZero::Renderer::InitDevice(){
+    device.Create(surface);
+}
 
-	// create device --------------------------------------------
-	//We want a GPU that can write to the SDL surface and supports Vulkan 1.1
-	vkb::PhysicalDeviceSelector selector{ vkbInstance };
-	vkb::PhysicalDevice physicalDevice = selector
-		.set_minimum_version(1, 1)
-		.set_surface(window.surface)
-        // .add_required_extension(VK_KHR_SWAPCHAIN_EXTENSION_NAME)
-		.select()
-		.value();
-
-	//create the final Vulkan device
-	vkb::DeviceBuilder deviceBuilder{ physicalDevice };
-	vkb::Device vkbDevice = deviceBuilder.build().value();
-    LOG(INFO, "Vulkan Device created [ Renderer Window Name : %s ]", window.title);
-
-	// Get the VkDevice handle used in the rest of a Vulkan application
-	device.physical = physicalDevice.physical_device;
-	device.logical = vkbDevice.device;
-
-    // get device queues and queue indices
-    device.presentQueue = vkbDevice.get_queue(vkb::QueueType::present).value();
-    device.presentQueueIndex = vkbDevice.get_queue_index(vkb::QueueType::present).value();
-    
-    device.graphicsQueue = vkbDevice.get_queue(vkb::QueueType::graphics).value();
-    device.graphicsQueueIndex = vkbDevice.get_queue_index(vkb::QueueType::graphics).value();
-
-    // create swapchain ------------------------------------------
-    vkb::SwapchainBuilder swapchainBuilder {device.physical, device.logical, window.surface};
-    vkb::Swapchain vkbSwapchain = swapchainBuilder.use_default_format_selection()
-		                            /* vsync */ .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
-		                                        .set_desired_extent(window.size.x, window.size.y)
-		                                        .build()
-		                                        .value();
-    // fill in swapchain details
-    swapchain.swapchain = vkbSwapchain.swapchain;
-    swapchain.images = vkbSwapchain.get_images().value();
-    swapchain.imageViews = vkbSwapchain.get_image_views().value();
-    swapchain.imageFormat = vkbSwapchain.image_format;
-    swapchain.imageExtent = window.GetExtent();
-    swapchain.imageCount = swapchain.images.size();
-    LOG(INFO, "Vulkan Swapchain created [ Renderer Window Name : %s ]", window.title);
-
-    // init vulkan memory allocator
-    VmaAllocatorCreateInfo allocInfo = {};
-    allocInfo.instance = instance;
-    allocInfo.physicalDevice = device.physical;
-    allocInfo.device = device.logical;
-    vmaCreateAllocator(&allocInfo, &allocator);
-    LOG(INFO, "Memory Allocator created [ Renderer Window Name : %s ]", window.title);
+// init swapchain
+void GameZero::Renderer::InitSwapchain(){
+    swapchain.Create(surface, device);
 }
 
 void GameZero::Renderer::InitCommands(){
     // create command pool for graphics queue
-    VkCommandPoolCreateInfo cmdPoolInfo = VulkanInitialize<VkCommandPoolCreateInfo>();
-    cmdPoolInfo.queueFamilyIndex = device.graphicsQueueIndex;
-    cmdPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
+    vk::CommandPoolCreateInfo cmdPoolInfo(
+        vk::CommandPoolCreateFlagBits::eResetCommandBuffer, /* flags */
+        device.graphicsQueueIndex /* queue index */
+    );
     
-    for(size_t i=0; i<FrameOverlapCount; i++){
-        CHECK_VK_RESULT(vkCreateCommandPool(device.logical, &cmdPoolInfo, nullptr, &frames[i].commandPool), "Command Pool creation failed");
+    for(auto& frame : frames){
+        frame.commandPool = device.logical.createCommandPool(cmdPoolInfo);
 
         // allocate 1 command buffer
-        VkCommandBufferAllocateInfo cmdBuffAllocInfo = VulkanInitialize<VkCommandBufferAllocateInfo>();
-        cmdBuffAllocInfo.commandPool = frames[i].commandPool;
-        cmdBuffAllocInfo.commandBufferCount = 1;
-        cmdBuffAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        CHECK_VK_RESULT(vkAllocateCommandBuffers(device.logical, &cmdBuffAllocInfo, &frames[i].commandBuffer), "Command Buffer allocation failed");
+        vk::CommandBufferAllocateInfo cmdBuffAllocInfo(
+            frame.commandPool, /* command pool */
+            vk::CommandBufferLevel::ePrimary, /* command buffer level */
+            1 /* command buffer level count */
+        );
 
+        frame.commandBuffer = device.logical.allocateCommandBuffers(cmdBuffAllocInfo).front();
         // deletor
         PushFunction([=](){
-            vkDestroyCommandPool(device.logical, frames[i].commandPool, nullptr);
-            LOG(INFO, "Destroyed Command Pool");
+            device.logical.destroyCommandPool(frame.commandPool);
         });
     }
 
-    cmdPoolInfo.flags = 0;
-    CHECK_VK_RESULT(vkCreateCommandPool(device.logical, &cmdPoolInfo, nullptr, &uploadContext.commandPool), "Command Pool creation failed");
+    cmdPoolInfo.flags = {};
+    uploadContext.commandPool = device.logical.createCommandPool(cmdPoolInfo);
     // deletor
     PushFunction([=](){
-        vkDestroyCommandPool(device.logical, uploadContext.commandPool, nullptr);
-        LOG(INFO, "Destroyed Command Pool");
+        device.logical.destroyCommandPool(uploadContext.commandPool);
     });
 }
 
 void GameZero::Renderer::InitDepthImage(){
-    VkExtent3D depthImageExtent;
+    vk::Extent3D depthImageExtent;
     depthImageExtent.width = swapchain.imageExtent.width;
     depthImageExtent.height = swapchain.imageExtent.height;
     depthImageExtent.depth = 1.f;
    
-    VkImageCreateInfo imageInfo = {};
-    imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-    imageInfo.arrayLayers = 1;
-    imageInfo.mipLevels = 1;
-    imageInfo.imageType = VK_IMAGE_TYPE_2D;
-    imageInfo.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
-    imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-    imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-    imageInfo.format = VK_FORMAT_D32_SFLOAT;
-    imageInfo.extent = depthImageExtent;
+    vk::ImageCreateInfo imageInfo(
+        {}, /* flags */
+        vk::ImageType::e2D, /* image type */
+        vk::Format::eD32Sfloat, /* format */
+        depthImageExtent, /* extent */
+        1, /* mip levels */
+        1, /* array layers */
+        vk::SampleCountFlagBits::e1, /* sample count */
+        vk::ImageTiling::eOptimal, /* tiling */
+        vk::ImageUsageFlagBits::eDepthStencilAttachment /* usage */
+    );
+    
+    vma::AllocationCreateInfo imageAllocInfo = {};
+    imageAllocInfo.usage = vma::MemoryUsage::eGpuOnly;
+    imageAllocInfo.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
 
-    VmaAllocationCreateInfo imageAllocInfo = {};
-    imageAllocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-    imageAllocInfo.requiredFlags = VkMemoryPropertyFlagBits::VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-    CHECK_VK_RESULT(vmaCreateImage(allocator, &imageInfo, &imageAllocInfo, &depthImage.image, &depthImage.allocation, nullptr), "Failed to create Depth Image");
+    device.allocator.createImage(&imageInfo, &imageAllocInfo, &depthImage.image, &depthImage.allocation, nullptr);
     // deletor
     PushFunction([=](){
-        vmaDestroyImage(allocator, depthImage.image, depthImage.allocation);
+        device.allocator.destroyImage(depthImage.image, depthImage.allocation);
         LOG(INFO, "Destroyed Image");
     });
 
@@ -273,134 +133,128 @@ void GameZero::Renderer::InitDepthImage(){
 	imageViewInfo.subresourceRange.layerCount = 1;
 	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
-    CHECK_VK_RESULT(vkCreateImageView(device.logical, &imageViewInfo, nullptr, &depthImageView), "Failed to create Image View for Depth Image");
+    // create image view
+    depthImage.view = device.logical.createImageView(imageViewInfo);
     // deletor
     PushFunction([=](){
-        vkDestroyImageView(device.logical, depthImageView, nullptr);
-        LOG(INFO, "Destroyed Image View");
+        device.logical.destroyImageView(depthImage.view);
     });
 }
 
 // init renderpass
 void GameZero::Renderer::InitRenderPass(){
-    VkAttachmentDescription colorAttachment = {};
-    // no multisampling
-    colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    // attachment format is same as swapchain image format
-    colorAttachment.format = swapchain.imageFormat;
-    // we dont know what initial layout is (before renderpass starts)
-    colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    // we want image to be presentable to screen finally (after renderpass completion)
-    colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-    // we want to clear image on load
-    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    // we want to save image finally
-    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    // we dont care about stencil
-    colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-    colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+    vk::AttachmentDescription colorAttachment(
+        {}, /* flags */
+        swapchain.imageFormat, /* format */
+        vk::SampleCountFlagBits::e1, /* sample count */
+        vk::AttachmentLoadOp::eClear, /* attachment load op*/
+        vk::AttachmentStoreOp::eStore, /* attachment store op*/
+        vk::AttachmentLoadOp::eDontCare, /* stencil load op */
+        vk::AttachmentStoreOp::eDontCare /* stencil store op */
+    );
+    
 
     // make an attachment reference for subpass
-    VkAttachmentReference colorAttachmentRef = {};
-    // first attachment in array of attachments in renderpass
-    colorAttachmentRef.attachment = 0;
-    // image must be optimal for color attachment on load
-    colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    vk::AttachmentReference colorAttachmentRef(
+        0, /* attachment */
+        vk::ImageLayout::eColorAttachmentOptimal /* layout */
+    );
 
     // depth attachment
-    VkAttachmentDescription depthAttachment = {};
-    depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-    depthAttachment.format = VK_FORMAT_D32_SFLOAT;
-    depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-    depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-    depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-    depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-    depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+    vk::AttachmentDescription depthAttachment(
+        {}, /* flags */
+        vk::Format::eD32Sfloat, /* format */
+        vk::SampleCountFlagBits::e1, /* sample count */
+        vk::AttachmentLoadOp::eClear, /* load op */
+        vk::AttachmentStoreOp::eStore, /* store op */
+        vk::AttachmentLoadOp::eDontCare, /* stencil load op */
+        vk::AttachmentStoreOp::eDontCare /* stencil store op */
+    );
 
     // depth attachment reference
-    VkAttachmentReference depthAttachmentRef = {};
-    depthAttachmentRef.attachment = 1;
-    depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+    vk::AttachmentReference depthAttachmentRef(
+        1, /* attachment */
+        vk::ImageLayout::eDepthStencilAttachmentOptimal /* layout */
+    );
 
     // describe subpass
-    VkSubpassDescription subpass = {};
-    subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-    subpass.colorAttachmentCount = 1;
-    subpass.pColorAttachments = &colorAttachmentRef;
-    subpass.pDepthStencilAttachment = &depthAttachmentRef;
-
+    vk::SubpassDescription subpass(
+        {}, /* flags */
+        vk::PipelineBindPoint::eGraphics, /* bind point */
+        0, /* input attachment count */
+        nullptr, /* input attachment */
+        1, /* color attachment count */
+        &colorAttachmentRef, /* color attachments */
+        nullptr, /* resolve attachment */
+        &depthAttachmentRef, /* depth stencil attachment */
+        0, /* preserve attachment count */
+        nullptr /* preserve attachment */
+    );
     // attachments for renderpass
-    VkAttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
+    vk::AttachmentDescription attachments[2] = { colorAttachment, depthAttachment };
 
     // create renderpass
-    VkRenderPassCreateInfo renderPassInfo = VulkanInitialize<VkRenderPassCreateInfo>();
-    renderPassInfo.attachmentCount = 2;
-    renderPassInfo.pAttachments = attachments;
-    renderPassInfo.subpassCount = 1;
-    renderPassInfo.pSubpasses = &subpass;
+    vk::RenderPassCreateInfo renderPassInfo(
+        {}, /* flags */
+        2, /* attachment count */
+        attachments, /* attachments */
+        1, /* subpass count */
+        &subpass /* subpasses */
+    );
 
-    CHECK_VK_RESULT(vkCreateRenderPass(device.logical, &renderPassInfo, nullptr, &renderPass.renderPass), "Failed to create Vulkan Render Pass");
+
+    renderPass.renderPass = device.logical.createRenderPass(renderPassInfo, nullptr);
     // destroy renderpass
     PushFunction([=](){
-        vkDestroyRenderPass(device.logical, renderPass.renderPass, nullptr);
-        LOG(INFO, "Destroyed Render Pass");
+        device.logical.destroyRenderPass(renderPass.renderPass);
     });
 }
 
 void GameZero::Renderer::InitFramebuffers(){
-    VkFramebufferCreateInfo fbInfo = VulkanInitialize<VkFramebufferCreateInfo>();
-    fbInfo.renderPass = renderPass.renderPass;
-    fbInfo.attachmentCount = 2; // number of images attachments in renderpass
-    fbInfo.width = swapchain.imageExtent.width;
-    fbInfo.height = swapchain.imageExtent.height;
-    fbInfo.layers = 1;
-
     renderPass.framebuffers.resize(swapchain.imageCount);
     for(size_t fbID = 0; fbID < swapchain.imageCount; fbID++){
+        vk::ImageView fbAttachments[2] = {swapchain.imageViews[fbID], depthImage.view};
+       
+        vk::FramebufferCreateInfo fbInfo(
+            {},
+            renderPass.renderPass,
+            2,
+            fbAttachments,
+            swapchain.imageExtent.width,
+            swapchain.imageExtent.height,
+            1
+        );
+
         // framebuffer takes images view for swapchain image and depth image
-        VkImageView fbAttachments[2] = {swapchain.imageViews[fbID], depthImageView};
         fbInfo.pAttachments = fbAttachments;
-        CHECK_VK_RESULT(vkCreateFramebuffer(device.logical, &fbInfo, nullptr, &renderPass.framebuffers[fbID]), "Failed to create Vulkan Framebuffer");
+        renderPass.framebuffers[fbID] = device.logical.createFramebuffer(fbInfo);
         // deletor
         PushFunction([=](){
-            vkDestroyFramebuffer(device.logical, renderPass.framebuffers[fbID], nullptr);
-            LOG(INFO, "Destroyed Framebuffer");
+            device.logical.destroyFramebuffer(renderPass.framebuffers[fbID]);
         });
     }
 }
 
 void GameZero::Renderer::InitSyncStructures(){
-    // create fence
-    VkFenceCreateInfo fenceInfo = {};
-    fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    fenceInfo.flags = VK_FENCE_CREATE_SIGNALED_BIT;
-
-    // create semaphores
-    VkSemaphoreCreateInfo semaphoreInfo = {};
-    semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+    // fence info
+    vk::FenceCreateInfo fenceInfo(vk::FenceCreateFlagBits::eSignaled);
 
     for(auto& frame : frames){
-        CHECK_VK_RESULT(vkCreateFence(device.logical, &fenceInfo, nullptr, &frame.renderFence), "Failed to create Vulkan Fence");
-        CHECK_VK_RESULT(vkCreateSemaphore(device.logical, &semaphoreInfo, nullptr, &frame.renderSemaphore), "Failed to create Vulkan Semaphore");
-        CHECK_VK_RESULT(vkCreateSemaphore(device.logical, &semaphoreInfo, nullptr, &frame.presentSemaphore), "Failed to create Vulkan Semaphore");
+        frame.renderFence = device.logical.createFence(fenceInfo);
+        frame.renderSemaphore = device.logical.createSemaphore({});
+        frame.presentSemaphore = device.logical.createSemaphore({});
         // deletors
         PushFunction([=](){
-            vkDestroyFence(device.logical, frame.renderFence, nullptr);
-            LOG(INFO, "Destroyed Fence");
-            vkDestroySemaphore(device.logical, frame.presentSemaphore, nullptr);
-            LOG(INFO, "Destroyed Semaphore");
-            vkDestroySemaphore(device.logical, frame.renderSemaphore, nullptr);
-            LOG(INFO, "Destroyed Semaphore");
+            device.logical.destroyFence(frame.renderFence);
+            device.logical.destroySemaphore(frame.renderSemaphore);
+            device.logical.destroySemaphore(frame.presentSemaphore);
         });
     }
 
-    fenceInfo.flags = 0;
-    CHECK_VK_RESULT(vkCreateFence(device.logical, &fenceInfo, nullptr, &uploadContext.uploadFence), "Failed to create Vulkan Fence");
+    uploadContext.uploadFence = device.logical.createFence({});
     // deletor
     PushFunction([=](){
-        vkDestroyFence(device.logical, uploadContext.uploadFence, nullptr);
-        LOG(INFO, "Destroyed Fence");
+        device.logical.destroyFence(uploadContext.uploadFence);
     });
 }
 
@@ -408,57 +262,61 @@ void GameZero::Renderer::Draw(){
     auto& frame = GetCurrentFrame();
 
     // wait until gpu singals us that it is done rendering
-    CHECK_VK_RESULT(vkWaitForFences(device.logical, 1, &frame.renderFence, VK_TRUE, 1e9), "Waiting for Vulkan ( Render ) Fence failed");
+    device.logical.waitForFences({frame.renderFence}, true, 1e9);
     // then reset render fence
-    CHECK_VK_RESULT(vkResetFences(device.logical, 1, &frame.renderFence), "Reset Vulkan ( Render ) Fence failed");
+    device.logical.resetFences({frame.renderFence});
 
     // get next image to render to from swapchain
     // swapchain will signal present semaphore when it is done presenting it
-    uint32_t nextImageIndex;
-    CHECK_VK_RESULT(vkAcquireNextImageKHR(device.logical, swapchain.swapchain, 1e9, frame.presentSemaphore, VK_NULL_HANDLE, &nextImageIndex), "Failed to get next image from Swapchain");
+    uint32_t nextImageIndex = device.logical.acquireNextImageKHR(swapchain.swapchain, 1e9, frame.presentSemaphore).value;
 
     // reset command buffer for use
-    CHECK_VK_RESULT(vkResetCommandBuffer(frame.commandBuffer, 0), "Failed to reset Command Buffer");
+    frame.commandBuffer.reset();
 
     // rename it for shorter name
-    VkCommandBuffer cmd = frame.commandBuffer;
+    vk::CommandBuffer cmd = frame.commandBuffer;
 
     // begin command buffer
-    VkCommandBufferBeginInfo cmdBeginInfo = VulkanInitialize<VkCommandBufferBeginInfo>();
-    cmdBeginInfo.flags = VkCommandBufferUsageFlagBits::VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    CHECK_VK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo), "Command Buffer recording failed");
+    vk::CommandBufferBeginInfo cmdBeginInfo(
+        vk::CommandBufferUsageFlagBits::eOneTimeSubmit
+    );
+    cmd.begin(cmdBeginInfo);
 
     // clear value for color attachment on renderpass begin
-    VkClearValue colorClear = {};
-    colorClear.color = {{0.01f, 0.01f, 0.01f, 1.0f}};
+    vk::ClearValue colorClear;
+    colorClear.color = {};
 
-    VkClearValue depthClear = {};
+    vk::ClearValue depthClear = {};
     depthClear.depthStencil.depth = 1.f;
     
-    VkClearValue clearValues[2] = { colorClear, depthClear};
+    vk::ClearValue clearValues[2] = { colorClear, depthClear};
 
     // begin renderpass
-    VkRenderPassBeginInfo rpBeginInfo = VulkanInitialize<VkRenderPassBeginInfo>();
-    rpBeginInfo.clearValueCount = 2;
-    rpBeginInfo.pClearValues = clearValues;
-    rpBeginInfo.renderPass = renderPass.renderPass;
-    rpBeginInfo.framebuffer = renderPass.framebuffers[nextImageIndex];
-    rpBeginInfo.renderArea = VkRect2D{/*offset*/{0, 0}, /*extent*/{window.GetExtent()}};
-    
+    vk::RenderPassBeginInfo rpBeginInfo(
+        renderPass.renderPass, /* renderpass */
+        renderPass.framebuffers[nextImageIndex], /* framebuffer */
+        vk::Rect2D( /* render area*/
+            {0, 0},
+            window.GetExtent()
+        ),
+        2, /* clear value count */
+        clearValues /* clear values */
+    );
+
     // begin renderpass
-    vkCmdBeginRenderPass(cmd, &rpBeginInfo, VkSubpassContents::VK_SUBPASS_CONTENTS_INLINE);
+    cmd.beginRenderPass(rpBeginInfo, vk::SubpassContents::eInline);
 
     // draw objects
     DrawObjects(cmd, renderables.data(), renderables.size());
 
     // end renderpass
-    vkCmdEndRenderPass(cmd);
+    cmd.endRenderPass();
 
     // end command buffer recording
-    vkEndCommandBuffer(cmd);
+    cmd.end();
 
     // prepare to submit command buffer
-    VkSubmitInfo submitInfo = VulkanInitialize<VkSubmitInfo>();
+    vk::SubmitInfo submitInfo;
     
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &frame.presentSemaphore;
@@ -469,27 +327,25 @@ void GameZero::Renderer::Draw(){
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
-    VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+    vk::PipelineStageFlags waitStage = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     submitInfo.pWaitDstStageMask = &waitStage;
 
     // submit command buffer to graphisc queue
     // render fence will now block cpu when cpu issues a vkWaitForFences until unless rendering is done
-    CHECK_VK_RESULT(vkQueueSubmit(device.graphicsQueue, 1, &submitInfo, frame.renderFence), "Failed to submit Command Buffers to Graphics Queue");
-
+    device.graphicsQueue.submit(submitInfo, frame.renderFence);
+    
     // after rendering we need to show it on screen
-    VkPresentInfoKHR presentInfo = {};
-    presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-    
-    presentInfo.swapchainCount = 1;
-    presentInfo.pSwapchains = &swapchain.swapchain;
+    vk::PresentInfoKHR presentInfo(
+        1, /* wait semaphore count */
+        &frame.renderSemaphore, /* wait semaphore */
+        1, /* swapchain count */
+        &swapchain.swapchain, /* swapchains */
+        &nextImageIndex /* image indices */
+    );
 
-    // this will ask vulkan to wait before rendering is complete
-    presentInfo.waitSemaphoreCount = 1;
-    presentInfo.pWaitSemaphores = &frame.renderSemaphore;
+    // present to surface
+    device.presentQueue.presentKHR(presentInfo);
 
-    presentInfo.pImageIndices = &nextImageIndex;
-    CHECK_VK_RESULT(vkQueuePresentKHR(device.presentQueue, &presentInfo), "Failed to present rendered image to screen");
-    
     // next frame
     frameNumber++;
 }

@@ -66,13 +66,6 @@ void GameZero::Window::Create(const char *windowTitle, const Vector2u &windowSiz
     LOG(INFO, "Window created : %s", title)
 }
 
-// create vulkan surface
-void GameZero::Window::CreateSurface(){
-    VkSurfaceKHR tempSurface;
-    ASSERT(SDL_Vulkan_CreateSurface(window, GetVulkanInstance(), &tempSurface) == SDL_TRUE, "SURFACE CREATION FAILED : %s", SDL_GetError());
-    surface = tempSurface;
-}
-
 void GameZero::Window::HandleEvents(){
     static SDL_Event event;
     

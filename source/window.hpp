@@ -3,8 +3,6 @@
 
 #include "common.hpp"
 #include "math.hpp"
-#include "vulkan/globals.hpp"
-#include "vulkan/swapchain.hpp"
 
 namespace GameZero{
     
@@ -29,6 +27,13 @@ namespace GameZero{
         HitTest     = SDL_WINDOWEVENT_HIT_TEST
     };
 
+    /**
+     * @note Window::surface is not created instantly.
+     *
+     *       Surface is created when vulkan instance is created
+     *       i.e the first call to GetVulkanInstance()
+     */
+
     /// Window
     struct Window{
         /// sdl window handle
@@ -37,10 +42,6 @@ namespace GameZero{
         Vector2u size;
         /// this window title
         const char* title;
-        /// vulkan surface handle
-        vk::SurfaceKHR surface;
-        /// this window's swapchain
-        Swapchain swachain;
         /// check if window is open
         bool isOpen = true;
         /// sdl window id
@@ -72,15 +73,7 @@ namespace GameZero{
          * @param size 
          */
         void Create(const char* title, const Vector2u& size);
-
-        /// create surface for this window
-        void CreateSurface();
-
-        /// destroy created surface
-        inline void DestroySurface(){
-            GetVulkanInstance().destroySurfaceKHR(surface);
-        }
-
+        
         /**
          * @brief Get the Window Extent 
          * 

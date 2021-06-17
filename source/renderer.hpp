@@ -12,20 +12,23 @@
 #include <unordered_map>
 #include <functional>
 #include "texture.hpp"
-#include <deque>
 
 namespace GameZero{
 
     struct RenderPass{
-        VkRenderPass renderPass;
-        std::vector<VkFramebuffer> framebuffers;
+        vk::RenderPass renderPass;
+        std::vector<vk::Framebuffer> framebuffers;
     };
 
     class Renderer{
         /// initialize renderer
         void Initialize();
-        /// init vulkan
-        void InitVulkan();
+        /// init surface
+        void InitSurface();
+        /// init device
+        void InitDevice();
+        /// init swapchain
+        void InitSwapchain();
         /// init command buffers
         void InitCommands();
         // init depth image
@@ -46,19 +49,16 @@ namespace GameZero{
         void InitDescriptors();
         /// load images
         void LoadImages();
-
-        // keep track of how many renderer instances are present on system
-        // if this is the last object then we need to destroy vulkan instance
-        // not before that!
-        static inline uint8_t objectCounter = 0;
-        static inline VkInstance instance = VK_NULL_HANDLE;
-        static inline VkDebugUtilsMessengerEXT debugMessenger = VK_NULL_HANDLE;
         
-        /// execte deletors
-        void FlushDeletors();
+        /// add a new function to deletion queue
+        inline void PushFunction(std::function<void()>&& function) noexcept{
+            GetDestructionQueue()->PushFunction(std::move(function));
+        }
     public:
         /// window that this renderer renders to
         Window& window;
+
+        Surface surface;
 
         /// device used by the renderer
         Device device;
@@ -76,24 +76,16 @@ namespace GameZero{
         /// while gpu renders to one frame, renderer will prepare another frame to render to
         FrameData frames[FrameOverlapCount];
 
-        /// contains destruction functions
-        std::deque<std::function<void()>> deletors;
-
         /// default graphics pipeline
         VkPipeline pipeline;
         /// default graphics pipeline layout
         VkPipelineLayout pipelineLayout;
-
-        /// allocator handle for vma
-        VmaAllocator allocator;
 
         /// simple mesh
         Mesh mesh;
 
         /// depth image : manually allocated
         AllocatedImage depthImage;
-        /// image view for depth image 
-        VkImageView depthImageView;
 
         /// material map with their unique name
         std::unordered_map<std::string, Material> materials;
@@ -152,10 +144,6 @@ namespace GameZero{
          */
         ~Renderer();
 
-        /// add a new function to deletion queue
-        void PushFunction(std::function<void()>&& function){
-            deletors.emplace_back(function);
-        }
 
         /// main draw loop
         void Draw();

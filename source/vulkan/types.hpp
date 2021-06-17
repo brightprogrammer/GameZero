@@ -1,32 +1,22 @@
 #ifndef GAMEZERO_VULKAN_TYPES_HPP
 #define GAMEZERO_VULKAN_TYPES_HPP
 
-#include "common.hpp"
-#include "glm/ext/matrix_transform.hpp"
-#include "utils.hpp"
-#include "vulkan/vulkan_core.h"
 #include <memory>
-#include "vulkan/vk_mem_alloc.h"
+#include "../utils.hpp"
+#include <vulkan/vulkan.hpp>
+#include "vk_mem_alloc.hpp"
+#include "glm/ext/matrix_transform.hpp"
+
 
 namespace GameZero{
     /// represents allocated buffer by vulkan memory allocator
     struct AllocatedBuffer{
         VkBuffer buffer;
-        VmaAllocation allocation;
-    };
-
-    /// represents an allocated image
-    struct AllocatedImage{
-        VkImage image;
-        // VkImageView imageView;
-        // VkFormat imageFormat;
-        // VkImageUsageFlags imageUsage;
-        // VkExtent2D imageExtent;
-        VmaAllocation allocation;
+        vma::Allocation allocation;
     };
 
     // create buffer
-    inline AllocatedBuffer CreateBuffer(VmaAllocator allocator, size_t allocSize, VkBufferUsageFlags usage, VmaMemoryUsage memUsage){
+    inline AllocatedBuffer CreateBuffer(vma::Allocator allocator, size_t allocSize, VkBufferUsageFlags usage, vma::MemoryUsage memUsage){
         //allocate vertex buffer
         VkBufferCreateInfo bufferInfo = {};
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -34,16 +24,17 @@ namespace GameZero{
         bufferInfo.size = allocSize;
         bufferInfo.usage = usage;
 
-        VmaAllocationCreateInfo vmaallocInfo = {};
+        vma::AllocationCreateInfo vmaallocInfo = {};
         vmaallocInfo.usage = memUsage;
 
         AllocatedBuffer newBuffer;
 
         //allocate the buffer
-        CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo,
-            &newBuffer.buffer,
-            &newBuffer.allocation,
-            nullptr), "Failed to allocate Buffer");
+        LOG(DEBUG, "CREATE BUFFER, NOTHING IS BEING CREATED HERE")
+        // CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo,
+        //     &newBuffer.buffer,
+        //     &newBuffer.allocation,
+        //     nullptr), "Failed to allocate Buffer");
 
         return newBuffer;
     }
@@ -73,21 +64,21 @@ namespace GameZero{
 
     /// frame data
     struct FrameData{
-        VkSemaphore renderSemaphore, presentSemaphore;
-        VkFence renderFence;
+        vk::Semaphore renderSemaphore, presentSemaphore;
+        vk::Fence renderFence;
 
-        VkCommandPool commandPool;
-        VkCommandBuffer commandBuffer;
+        vk::CommandPool commandPool;
+        vk::CommandBuffer commandBuffer;
 
         /// holds gpu camera data during a single renderpass
         AllocatedBuffer cameraBuffer;
 
-        VkDescriptorSet descriptorSet;
+        vk::DescriptorSet descriptorSet;
     };
 
     struct UploadContext{
-        VkFence uploadFence;
-        VkCommandPool commandPool;
+        vk::Fence uploadFence;
+        vk::CommandPool commandPool;
     };
 }
 

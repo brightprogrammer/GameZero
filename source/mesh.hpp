@@ -14,7 +14,7 @@
 
 #include "utils.hpp"
 #include "vulkan/vulkan_core.h"
-#include "vulkan_types.hpp"
+#include "vulkan/types.hpp"
 
 namespace GameZero {
 

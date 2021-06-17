@@ -9,5 +9,6 @@
 #include "utils/tiny_obj_loader.h"
 #include "utils/stb_image.h"
 #include "utils/singleton.hpp"
+#include "utils/destruction_queue.hpp"
 
 #endif//GAMEZERO_UTILS_HPP
