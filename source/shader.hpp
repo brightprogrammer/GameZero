@@ -5,24 +5,31 @@
 #include "utils/assert.hpp"
 #include "utils/file.hpp"
 #include "vulkan/vulkan_core.h"
+#include "vulkan/device.hpp"
 
 namespace GameZero{
 
-    [[nodiscard]] inline VkShaderModule LoadShaderModule(const VkDevice& device, const char* filename){
-        // vulkan expects code to be in uin32_t* format
+    /**
+     * @brief Loads a precompiled spir-v shader as a vulkan shader module
+     * 
+     * @param device : device that will use this shader
+     * @param filename : filename/path of compiled spir-v shader code
+     * @return vk::ShaderModule : cratedShaderModule
+     */
+    [[nodiscard]] inline vk::ShaderModule LoadShaderModule(const Device& device, const char* filename){
+        // vulkan expects code to be in uint32_t* format
         std::vector<uint32_t> code;
         if(!ReadFile(code, filename, true)) return VK_NULL_HANDLE;
 
-        VkShaderModuleCreateInfo shaderInfo = {};
-        shaderInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-        shaderInfo.codeSize = code.size() * sizeof(uint32_t);
-        shaderInfo.pCode = code.data();
-
+        // shader module create info
+        vk::ShaderModuleCreateInfo shaderInfo(
+            {}, /* flags */
+            code.size() * sizeof(uint32_t), /* code size */
+            code.data() /* code */
+        );
+        
         // create shader module
-        VkShaderModule shader;
-        CHECK_VK_RESULT(vkCreateShaderModule(device, &shaderInfo, nullptr, &shader), "Failed to create Vulkan Shader Module");
-
-        return shader;
+        return device.logical.createShaderModule(shaderInfo);
     }
 
 };

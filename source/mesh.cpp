@@ -1,6 +1,7 @@
 #include "mesh.hpp"
 #include "glm/ext/quaternion_geometric.hpp"
 #include "utils/assert.hpp"
+#include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_core.h"
 #include "cstring"
 
@@ -9,45 +10,45 @@ GameZero::VertexInputDescription GameZero::Vertex::GetVertexDescription(){
 	VertexInputDescription description;
 
 	//we will have just 1 vertex buffer binding, with a per-vertex rate
-	VkVertexInputBindingDescription mainBinding = {};
+	vk::VertexInputBindingDescription mainBinding = {};
 	// this data will be available from binding 0
 	mainBinding.binding = 0;
 	// after what no of bytes do you get next vertex 
 	mainBinding.stride = sizeof(Vertex);
 	// you get a vertex on moving stride number of bytes
-	mainBinding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	mainBinding.inputRate = vk::VertexInputRate::eVertex;
 
 	description.bindings.push_back(mainBinding);
 
 	//Position will be stored at Location 0
-	VkVertexInputAttributeDescription positionAttribute = {};
+	vk::VertexInputAttributeDescription positionAttribute = {};
 	positionAttribute.binding = 0;
 	positionAttribute.location = 0;
 	// vec3
-	positionAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	positionAttribute.format = vk::Format::eR32G32B32Sfloat;
 	positionAttribute.offset = offsetof(Vertex, position);
 
-	 //Normal will be stored at Location 1
-	VkVertexInputAttributeDescription normalAttribute = {};
+	//Normal will be stored at Location 1
+	vk::VertexInputAttributeDescription normalAttribute = {};
 	normalAttribute.binding = 0;
 	normalAttribute.location = 1;
 	// vec3
-	normalAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	normalAttribute.format = vk::Format::eR32G32B32Sfloat;;
 	normalAttribute.offset = offsetof(Vertex, normal);
 
 	//Color will be stored at Location 2
-	VkVertexInputAttributeDescription colorAttribute = {};
+	vk::VertexInputAttributeDescription colorAttribute = {};
 	colorAttribute.binding = 0;
 	colorAttribute.location = 2;
 	// vec3
-	colorAttribute.format = VK_FORMAT_R32G32B32_SFLOAT;
+	colorAttribute.format = vk::Format::eR32G32B32Sfloat;;
 	colorAttribute.offset = offsetof(Vertex, color);
 
 	//UV will be stored at Location 3
-	VkVertexInputAttributeDescription uvAttribute = {};
+	vk::VertexInputAttributeDescription uvAttribute = {};
 	uvAttribute.binding = 0;
 	uvAttribute.location = 3;
-	uvAttribute.format = VK_FORMAT_R32G32_SFLOAT;
+	uvAttribute.format = vk::Format::eR32G32Sfloat;;
 	uvAttribute.offset = offsetof(Vertex, uv);
 
 	description.attributes.push_back(positionAttribute);

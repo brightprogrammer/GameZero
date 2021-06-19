@@ -13,7 +13,7 @@
 #define GAMEZERO_VULKAN_SURFACE_HPP
 
 #include <vulkan/vulkan.hpp>
-#include "globals.hpp"
+#include "instance.hpp"
 #include "surface_details.hpp"
 #include "../window.hpp"
 

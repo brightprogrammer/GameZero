@@ -4,6 +4,7 @@
 #include "utils.hpp"
 #include "utils/vulkan_initializers.hpp"
 #include "vulkan/vk_mem_alloc.hpp"
+#include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_core.h"
 #include "shader.hpp"
 
@@ -31,24 +32,40 @@ GameZero::Renderer::~Renderer(){
 
 // initialize renderer
 void GameZero::Renderer::Initialize(){
+    LOG(DEBUG, "DONE HERE");
     InitSurface();
+    LOG(DEBUG, "DONE HERE");
     InitDevice();
+    LOG(DEBUG, "DONE HERE");
     InitCommands();
+    LOG(DEBUG, "DONE HERE");
     InitDepthImage();
+    LOG(DEBUG, "DONE HERE");
     InitRenderPass();
+    LOG(DEBUG, "DONE HERE");
     InitFramebuffers();
+    LOG(DEBUG, "DONE HERE");
     InitSyncStructures();
+    LOG(DEBUG, "DONE HERE");
     InitDescriptors();
+    LOG(DEBUG, "DONE HERE");
     InitPipelineLayouts();
+    LOG(DEBUG, "DONE HERE");
     InitPipelines();
+    LOG(DEBUG, "DONE HERE");
     InitMesh();
+    LOG(DEBUG, "DONE HERE");
     LoadImages();
+    LOG(DEBUG, "DONE HERE");
     InitScene();
+    LOG(DEBUG, "DONE HERE");
 }
 
 // create surface for given window to this renderer
 void GameZero::Renderer::InitSurface(){
+    LOG(DEBUG, "DONE HERE");
     surface.Create(window);
+    LOG(DEBUG, "DONE HERE");
 }
 
 // init device for the renderer
@@ -119,19 +136,17 @@ void GameZero::Renderer::InitDepthImage(){
     // deletor
     PushFunction([=](){
         device.allocator.destroyImage(depthImage.image, depthImage.allocation);
-        LOG(INFO, "Destroyed Image");
     });
 
-    VkImageViewCreateInfo imageViewInfo = {};
-    imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    vk::ImageViewCreateInfo imageViewInfo = {};
+    imageViewInfo.viewType = vk::ImageViewType::e2D;
     imageViewInfo.image = depthImage.image;
-    imageViewInfo.format = VK_FORMAT_D32_SFLOAT;
+    imageViewInfo.format = vk::Format::eD32Sfloat;
 	imageViewInfo.subresourceRange.baseMipLevel = 0;
 	imageViewInfo.subresourceRange.levelCount = 1;
 	imageViewInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewInfo.subresourceRange.layerCount = 1;
-	imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+	imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
 
     // create image view
     depthImage.view = device.logical.createImageView(imageViewInfo);
@@ -262,7 +277,7 @@ void GameZero::Renderer::Draw(){
     auto& frame = GetCurrentFrame();
 
     // wait until gpu singals us that it is done rendering
-    device.logical.waitForFences({frame.renderFence}, true, 1e9);
+    CHECK_VK_RESULT(device.logical.waitForFences({frame.renderFence}, true, 1e9), "Wait for fences failed");
     // then reset render fence
     device.logical.resetFences({frame.renderFence});
 
@@ -344,53 +359,57 @@ void GameZero::Renderer::Draw(){
     );
 
     // present to surface
-    device.presentQueue.presentKHR(presentInfo);
-
+    ASSERT(device.presentQueue.presentKHR(presentInfo) == vk::Result::eSuccess, "Failed to present rendered images");
+    
     // next frame
     frameNumber++;
 }
 
 // inpit pipeline layouts
 void GameZero::Renderer::InitPipelineLayouts(){
-    VkDescriptorSetLayout setLayouts[] = {descriptorSetLayout, singleTextureSetLayout};
+    vk::DescriptorSetLayout setLayouts[] = {descriptorSetLayout, singleTextureSetLayout};
 
-    VkPipelineLayoutCreateInfo layoutInfo = {};
-    layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layoutInfo.setLayoutCount = 2;
-    layoutInfo.pSetLayouts = setLayouts;
-    layoutInfo.pushConstantRangeCount = 0;
-    
-    CHECK_VK_RESULT(vkCreatePipelineLayout(device.logical, &layoutInfo, nullptr, &pipelineLayout), "Failed to create Pipeline Layout");
+    // pipeline layout create info
+    vk::PipelineLayoutCreateInfo layoutInfo(
+        {}, /* flags */
+        2, /* set layout count*/
+        setLayouts, /* sey layouts */
+        0, /* push constant range count */
+        nullptr /* push constant ranges */
+    );
+
+    pipelineLayout = device.logical.createPipelineLayout(layoutInfo);
     // deletor
     PushFunction([=](){
-        vkDestroyPipelineLayout(device.logical, pipelineLayout, nullptr);
-        LOG(INFO, "Destroted Pipeline Layout")
+        device.logical.destroyPipelineLayout(pipelineLayout);
     });
 }
 
 // init pipelines
 void GameZero::Renderer::InitPipelines(){
     // create shader modules
-    VkShaderModule vertShader = LoadShaderModule(device.logical, "shaders/vert.spv");
-    ASSERT(vertShader != VK_NULL_HANDLE, "Failed to load shader module");
-    VkShaderModule fragShader = LoadShaderModule(device.logical, "shaders/frag.spv");
-    ASSERT(fragShader != VK_NULL_HANDLE, "Failed to load shader module");
+    vk::ShaderModule vertShader = LoadShaderModule(device, "shaders/vert.spv");
+    vk::ShaderModule fragShader = LoadShaderModule(device, "shaders/frag.spv");
 
     // vertex shader stage
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    vertShaderStageInfo.module = vertShader;
-    vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-    vertShaderStageInfo.pName = "main";
-
-    // fragment shader stage
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.module = fragShader;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.pName = "main";
+    vk::PipelineShaderStageCreateInfo vertShaderStageInfo(
+        {}, /* flags */
+        vk::ShaderStageFlagBits::eVertex, /* stage */
+        vertShader, /* module */
+        "main", /* name */
+        nullptr /* specitalization info */
+    );
     
-    VkPipelineShaderStageCreateInfo shaderStages[2] = {
+    // fragment shader stage
+    vk::PipelineShaderStageCreateInfo fragShaderStageInfo(
+        {}, /* flags */
+        vk::ShaderStageFlagBits::eFragment, /* stage */
+        fragShader, /* module */
+        "main", /* name */
+        nullptr /* specitalization info */
+    );
+    
+    vk::PipelineShaderStageCreateInfo shaderStages[2] = {
         fragShaderStageInfo, vertShaderStageInfo
     };
 
@@ -398,71 +417,74 @@ void GameZero::Renderer::InitPipelines(){
     VertexInputDescription vertexDescription = Vertex::GetVertexDescription();
 
     // vertex input state
-    VkPipelineVertexInputStateCreateInfo vertexInput = {};
-    vertexInput.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-    vertexInput.vertexBindingDescriptionCount = vertexDescription.bindings.size();
-    vertexInput.pVertexBindingDescriptions = vertexDescription.bindings.data();
-    vertexInput.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-    vertexInput.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+    vk::PipelineVertexInputStateCreateInfo vertexInput(
+        vertexDescription.flags, /* flags */
+        vertexDescription.bindings.size(), /* binding count */
+        vertexDescription.bindings.data(), /* bindings */
+        vertexDescription.attributes.size(), /* attribute count */
+        vertexDescription.attributes.data() /* attributes */
+    );
 
     // input assembly
-    VkPipelineInputAssemblyStateCreateInfo inputAssembly = {};
-    inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
-    inputAssembly.primitiveRestartEnable = VK_FALSE;
-    inputAssembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly(
+        {}, /* flags */
+        vk::PrimitiveTopology::eTriangleList, /* topology */
+        false /* primitive reastart enable */
+    );
 
     // rasterization
-    VkPipelineRasterizationStateCreateInfo rasterizer = {};
-    rasterizer.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
-    rasterizer.rasterizerDiscardEnable = VK_FALSE;
-    rasterizer.depthClampEnable = VK_FALSE;
-    rasterizer.depthBiasConstantFactor = 0.f;
-    rasterizer.depthBiasClamp = 0.f;
-    rasterizer.depthBiasSlopeFactor = 0.f;
-    rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
-    rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
-    rasterizer.cullMode = VK_CULL_MODE_NONE;
-    rasterizer.lineWidth = 1.f;
+    vk::PipelineRasterizationStateCreateInfo rasterizer(
+        {}, /* flags */
+        false, /* depth clamp enable */
+        false, /* rasterization discard enable */
+        vk::PolygonMode::eFill, /* polygon mode */
+        vk::CullModeFlagBits::eNone, /* coll mode */
+        vk::FrontFace::eClockwise, /* front face */
+        false, /* depth bias enable */
+        0.f, /* depth bias constant factor */
+        0.f, /* depth bias clamp */
+        0.f, /* depth bias slope factor */
+        1.f /* line width*/
+    );
 
     // multisampling
-    VkPipelineMultisampleStateCreateInfo multisampling = {};
-    multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-    multisampling.sampleShadingEnable = VK_FALSE;
-    multisampling.rasterizationSamples = VK_SAMPLE_COUNT_1_BIT;
-    multisampling.minSampleShading = 1.f;
-    multisampling.pSampleMask = nullptr;
-    multisampling.alphaToCoverageEnable = VK_FALSE;
-    multisampling.alphaToOneEnable = VK_FALSE;
+    vk::PipelineMultisampleStateCreateInfo multisampling (
+        {}, /* flags */
+        vk::SampleCountFlagBits::e1, /* rasterization samples */
+        false, /* sample shading enable */
+        1.f, /* min sample shading */
+        nullptr, /* sample mask pointer */
+        false, /* alpha to coverage enable */
+        false /* alpha to one enable */
+    );
 
     // depth stencil state
-    VkPipelineDepthStencilStateCreateInfo depthStencil = {};
-    depthStencil.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+    vk::PipelineDepthStencilStateCreateInfo depthStencil = {};
     // draw on other objects
-    depthStencil.depthTestEnable = VK_TRUE;
+    depthStencil.depthTestEnable = true;
     // write depth value
-    depthStencil.depthWriteEnable = VK_TRUE;
-    depthStencil.depthCompareOp = VK_COMPARE_OP_LESS_OR_EQUAL;
-    depthStencil.depthBoundsTestEnable = VK_FALSE;
-    depthStencil.stencilTestEnable = VK_FALSE;
+    depthStencil.depthWriteEnable = true;
+    depthStencil.depthCompareOp = vk::CompareOp::eLessOrEqual;
+    depthStencil.depthBoundsTestEnable = false;
+    depthStencil.stencilTestEnable = false;
 
     // color blend attachment
-    VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-    colorBlendAttachment.colorWriteMask =  VK_COLOR_COMPONENT_A_BIT |
-                                    VK_COLOR_COMPONENT_G_BIT |
-                                    VK_COLOR_COMPONENT_B_BIT |
-                                    VK_COLOR_COMPONENT_R_BIT;
-    colorBlendAttachment.blendEnable = VK_FALSE;
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment = {};
+    colorBlendAttachment.colorWriteMask =   vk::ColorComponentFlagBits::eA |
+                                            vk::ColorComponentFlagBits::eR |
+                                            vk::ColorComponentFlagBits::eG |
+                                            vk::ColorComponentFlagBits::eB;
+    colorBlendAttachment.blendEnable = false;
     
     // color blend sate
-    VkPipelineColorBlendStateCreateInfo colorBlending = {};
-    colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+    vk::PipelineColorBlendStateCreateInfo colorBlending {};
     colorBlending.attachmentCount = 1;
     colorBlending.pAttachments = &colorBlendAttachment;
     colorBlending.logicOpEnable = VK_FALSE;
-    colorBlending.logicOp = VK_LOGIC_OP_COPY;
+    colorBlending.logicOp = vk::LogicOp::eCopy;
 
     // viewport
-    VkViewport viewport = {};
+    vk::Viewport viewport = {};
     viewport.width = static_cast<float>(window.size.x);
     viewport.height = static_cast<float>(window.size.y);
     viewport.x = 0;
@@ -471,46 +493,38 @@ void GameZero::Renderer::InitPipelines(){
     viewport.maxDepth = 1.f;
 
     // scissor
-    VkRect2D scissor = {{0, 0}, window.GetExtent()};
+    vk::Rect2D scissor = {{0, 0}, window.GetExtent()};
 
     // viewport state
-    VkPipelineViewportStateCreateInfo viewportState = {};
-    viewportState.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+    vk::PipelineViewportStateCreateInfo viewportState = {};
     viewportState.viewportCount = 1;
     viewportState.pViewports = &viewport;
     viewportState.scissorCount = 1;
     viewportState.pScissors = &scissor;
 
-    VkGraphicsPipelineCreateInfo graphicsPipelineInfo = {};
-    graphicsPipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    
+    vk::GraphicsPipelineCreateInfo graphicsPipelineInfo = {};
     graphicsPipelineInfo.stageCount = 2;
     graphicsPipelineInfo.pStages = shaderStages;
-
     graphicsPipelineInfo.pVertexInputState = &vertexInput;
     graphicsPipelineInfo.pInputAssemblyState = &inputAssembly;
-
     graphicsPipelineInfo.pRasterizationState = &rasterizer;
     graphicsPipelineInfo.pMultisampleState = &multisampling;
-
     graphicsPipelineInfo.pDepthStencilState = &depthStencil;
     graphicsPipelineInfo.pColorBlendState = &colorBlending;
     graphicsPipelineInfo.pViewportState = &viewportState;
-
     graphicsPipelineInfo.layout = pipelineLayout;
     graphicsPipelineInfo.renderPass =  renderPass.renderPass;
     graphicsPipelineInfo.subpass = 0;
 
-    CHECK_VK_RESULT(vkCreateGraphicsPipelines(device.logical, VK_NULL_HANDLE, 1, &graphicsPipelineInfo, nullptr, &pipeline), "Failed to create Graphics Pipeline");
+    pipeline = device.logical.createGraphicsPipeline({}, graphicsPipelineInfo).value;
     // deletor
     PushFunction([=](){
-        vkDestroyPipeline(device.logical, pipeline, nullptr);
-        LOG(INFO, "Destroyed Pipeline")
+        device.logical.destroyPipeline(pipeline);
     });
 
     // we dont need shader modules anymore
-    vkDestroyShaderModule(device.logical, vertShader, nullptr);
-    vkDestroyShaderModule(device.logical, fragShader, nullptr);
+    device.logical.destroyShaderModule(vertShader);
+    device.logical.destroyShaderModule(fragShader);
 
     // create default material
     CreateMaterial(pipeline, pipelineLayout, "default");
@@ -519,12 +533,12 @@ void GameZero::Renderer::InitPipelines(){
 void GameZero::Renderer::InitMesh(){
     // TODO : DO SOMETHING ABOUT THIS PATH
     mesh.LoadMeshFromOBJ("../mesh/lost_empire.obj");
-    UploadMeshToGPU(&mesh, allocator);
+    UploadMeshToGPU(&mesh, device.allocator);
     meshes["TestMesh"] = mesh;
 }
 
 // create a new material for renderer
-GameZero::Material* GameZero::Renderer::CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string &name){
+GameZero::Material* GameZero::Renderer::CreateMaterial(vk::Pipeline pipeline, vk::PipelineLayout layout, const std::string &name){
     Material material;
     material.pipeline = pipeline;
     material.pipelineLayout = pipelineLayout;
@@ -556,7 +570,7 @@ GameZero::Mesh* GameZero::Renderer::GetMesh(const std::string &name){
 }
 
 // draw multiple objects
-void GameZero::Renderer::DrawObjects(VkCommandBuffer cmd, RenderObject *firstObject, uint32_t count){
+void GameZero::Renderer::DrawObjects(vk::CommandBuffer cmd, RenderObject *firstObject, uint32_t count){
 	Mesh* lastMesh = nullptr;
 	Material* lastMaterial = nullptr;
 	for (int i = 0; i < count; i++)
@@ -574,21 +588,22 @@ void GameZero::Renderer::DrawObjects(VkCommandBuffer cmd, RenderObject *firstObj
 
         //and copy it to the buffer
         void* data;
-        vmaMapMemory(allocator, GetCurrentFrame().cameraBuffer.allocation, &data);
+        CHECK_VK_RESULT(device.allocator.mapMemory(GetCurrentFrame().cameraBuffer.allocation, &data), "Failed to map memory");
         memcpy(data, &cameraData, sizeof(GPUCameraData));
-        vmaUnmapMemory(allocator, GetCurrentFrame().cameraBuffer.allocation);
+        device.allocator.unmapMemory(GetCurrentFrame().cameraBuffer.allocation);
 
 		//only bind the mesh if it's a different one from last bind
 		if (object.mesh != lastMesh) {
 			//bind the mesh vertex buffer with offset 0
-			VkDeviceSize offset = 0;
-			vkCmdBindVertexBuffers(cmd, 0, 1, &object.mesh->vertexBuffer.buffer, &offset);
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 0, 1, &GetCurrentFrame().descriptorSet, 0, nullptr);
+			vk::DeviceSize offset = 0;
+			cmd.bindVertexBuffers(0, 1, &object.mesh->vertexBuffer.buffer, &offset);
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, object.material->pipelineLayout, 0, 1, &GetCurrentFrame().descriptorSet, 0, nullptr);
             lastMesh = object.mesh;
 		}
 
-        if(object.material->textureSet != VK_NULL_HANDLE){
-            vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &object.material->textureSet, 0, nullptr);
+        // bind texture pipeline only if there is a texture set in current object's material 
+        if(object.material->textureSet){
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, object.material->pipelineLayout, 1, 1, &object.material->textureSet, 0, nullptr);
         }
 
 		//we can now draw
@@ -597,19 +612,17 @@ void GameZero::Renderer::DrawObjects(VkCommandBuffer cmd, RenderObject *firstObj
 }
 
 void GameZero::Renderer::InitScene(){
-    VkSamplerCreateInfo samplerInfo = {};
-    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_REPEAT;
-    samplerInfo.magFilter = VK_FILTER_NEAREST;
-    samplerInfo.minFilter = VK_FILTER_NEAREST;
+    vk::SamplerCreateInfo samplerInfo = {};
+    samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
+    samplerInfo.magFilter = vk::Filter::eNearest;
+    samplerInfo.minFilter = vk::Filter::eNearest;
 
-    VkSampler blockySampler;
-    CHECK_VK_RESULT(vkCreateSampler(device.logical, &samplerInfo, nullptr, &blockySampler), "Failed to create sampler")
+    vk::Sampler blockySampler;
+    CHECK_VK_RESULT(device.logical.createSampler(&samplerInfo, nullptr, &blockySampler), "Failed to create sampler")
     PushFunction([=](){
-        vkDestroySampler(device.logical, blockySampler, nullptr);
-        LOG(INFO, "Destroyed Sampler");
+        device.logical.destroySampler(blockySampler);
     });
 
     RenderObject object;
@@ -619,115 +632,107 @@ void GameZero::Renderer::InitScene(){
     object.material = GetMaterial("default");
     if(!object.material) LOG(DEBUG, "Failed to Get Material");
 
-    VkDescriptorSetAllocateInfo allocInfo = {};
-	allocInfo.pNext = nullptr;
-	allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    vk::DescriptorSetAllocateInfo allocInfo = {};
 	allocInfo.descriptorPool = descriptorPool;
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &singleTextureSetLayout;
 
-    CHECK_VK_RESULT(vkAllocateDescriptorSets(device.logical, &allocInfo, &object.material->textureSet), "Failed to allocate Descriptor Set");
+    CHECK_VK_RESULT(device.logical.allocateDescriptorSets(  &allocInfo, &object.material->textureSet), "Failed to allocate Descriptor Set");
 
-    VkDescriptorImageInfo imageBufferInfo = {};
+    vk::DescriptorImageInfo imageBufferInfo = {};
 	imageBufferInfo.sampler = blockySampler;
-	imageBufferInfo.imageView = textures["empire_diffuse"].imageView;
-	imageBufferInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+	imageBufferInfo.imageView = textures["empire_diffuse"].image.view;
+	imageBufferInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
-    VkWriteDescriptorSet textureWrite = {};
-    textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    vk::WriteDescriptorSet textureWrite = {};
     textureWrite.descriptorCount = 1;
-    textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     textureWrite.dstSet = object.material->textureSet;
     textureWrite.dstBinding = 0;
     textureWrite.pImageInfo = &imageBufferInfo;
     
-    vkUpdateDescriptorSets(device.logical, 1, &textureWrite, 0, nullptr);
+    // update descriptor sets
+    device.logical.updateDescriptorSets(
+        1, /* descriptor write count */
+        &textureWrite, /* descriptor writes*/
+        0, /* descriptor copy count */
+        nullptr /* descriptor copies */
+    );
 
+    // add renderable
     renderables.push_back(object);
 }
 
 void GameZero::Renderer::InitDescriptors(){
     //create a descriptor pool that will hold 10 uniform buffers
-	std::vector<VkDescriptorPoolSize> sizes =
+	std::vector<vk::DescriptorPoolSize> sizes =
 	{
-		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10 },
-        { VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 10}
+		{ vk::DescriptorType::eUniformBuffer, 10 },
+        { vk::DescriptorType::eCombinedImageSampler, 10}
 	};
 
-	VkDescriptorPoolCreateInfo pool_info = {};
-	pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	pool_info.flags = 0;
+	vk::DescriptorPoolCreateInfo pool_info = {};
 	pool_info.maxSets = 10;
 	pool_info.poolSizeCount = (uint32_t)sizes.size();
 	pool_info.pPoolSizes = sizes.data();
 
-	CHECK_VK_RESULT(vkCreateDescriptorPool(device.logical, &pool_info, nullptr, &descriptorPool), "Failed to create Descriptor Pool");
+	CHECK_VK_RESULT(device.logical.createDescriptorPool(&pool_info, nullptr, &descriptorPool), "Failed to create Descriptor Pool");
     // deletor
     PushFunction([=](){
-        vkDestroyDescriptorPool(device.logical, descriptorPool, nullptr);
-        LOG(INFO, "Destroyed Descriptor Pool")
+        device.logical.destroyDescriptorPool(descriptorPool, nullptr);
     });
     LOG(INFO, "Created Descriptor Pool");
 
 	//information about the binding.
-	VkDescriptorSetLayoutBinding camBufferBinding = {};
+	vk::DescriptorSetLayoutBinding camBufferBinding = {};
 	camBufferBinding.binding = 0;
     // this variable is for passing array of data
 	camBufferBinding.descriptorCount = 1;
 	// it's a uniform buffer binding
-	camBufferBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+	camBufferBinding.descriptorType = vk::DescriptorType::eUniformBuffer;
 	// we use it from the vertex shader
-	camBufferBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+	camBufferBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
 
-	VkDescriptorSetLayoutCreateInfo setInfo = {};
-	setInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+	vk::DescriptorSetLayoutCreateInfo setInfo = {};
 	setInfo.pNext = nullptr;
 	//we are going to have 1 binding
 	setInfo.bindingCount = 1;
-	//no flags
-	setInfo.flags = 0;
 	//point to the camera buffer binding
 	setInfo.pBindings = &camBufferBinding;
 
-    CHECK_VK_RESULT(vkCreateDescriptorSetLayout(device.logical, &setInfo, nullptr, &descriptorSetLayout), "Failed to create Descriptor Set Layout");
+    CHECK_VK_RESULT(device.logical.createDescriptorSetLayout(&setInfo, nullptr, &descriptorSetLayout), "Failed to create Descriptor Set Layout");
     // deletor
     PushFunction([=](){
-        vkDestroyDescriptorSetLayout(device.logical, descriptorSetLayout, nullptr);
-        LOG(INFO, "Destroyed Descriptor Set Layout");
+        device.logical.destroyDescriptorSetLayout(descriptorSetLayout);
     });
-    LOG(INFO, "Created Descriptor Set Layout");
 
-    VkDescriptorSetLayoutBinding textureBinding = {};
+    vk::DescriptorSetLayoutBinding textureBinding = {};
     textureBinding.binding = 0;
     textureBinding.descriptorCount = 1;
-    textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    textureBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+    textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    textureBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-    VkDescriptorSetLayoutCreateInfo textureSetLayoutInfo = {};
+    vk::DescriptorSetLayoutCreateInfo textureSetLayoutInfo = {};
     textureSetLayoutInfo.bindingCount = 1;
     textureSetLayoutInfo.pBindings = &textureBinding;
-    textureSetLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
-    CHECK_VK_RESULT(vkCreateDescriptorSetLayout(device.logical, &textureSetLayoutInfo, nullptr, &singleTextureSetLayout), "Failed to create Descriptor Set Layout");
+    CHECK_VK_RESULT(device.logical.createDescriptorSetLayout(&textureSetLayoutInfo, nullptr, &singleTextureSetLayout), "Failed to create Descriptor Set Layout");
     // deletor
     PushFunction([=](){
-        vkDestroyDescriptorSetLayout(device.logical, singleTextureSetLayout, nullptr);
-        LOG(INFO, "Destroyed Descriptor Set Layout");
+        device.logical.destroyDescriptorSetLayout(singleTextureSetLayout);
+        
     });
-    LOG(INFO, "Created Descriptor Set Layout");
 
     for(auto& frame : frames){
-        frame.cameraBuffer = CreateBuffer(allocator, sizeof(GPUCameraData), VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU);
+        frame.cameraBuffer = CreateBuffer(device.allocator, sizeof(GPUCameraData), vk::BufferUsageFlagBits::eUniformBuffer, vma::MemoryUsage::eCpuToGpu);
         // deletor
         PushFunction([=](){
-            vmaDestroyBuffer(allocator, frame.cameraBuffer.buffer, frame.cameraBuffer.allocation);
-            LOG(INFO, "Destroyed Camera Buffer (Uniform)");
+            device.allocator.destroyBuffer(frame.cameraBuffer.buffer, frame.cameraBuffer.allocation);
         });
 
         //allocate one descriptor set for each frame
-		VkDescriptorSetAllocateInfo allocInfo ={};
+		vk::DescriptorSetAllocateInfo allocInfo ={};
 		allocInfo.pNext = nullptr;
-		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		//using the pool we just set
 		allocInfo.descriptorPool = descriptorPool;
 		//only 1 descriptor
@@ -735,10 +740,10 @@ void GameZero::Renderer::InitDescriptors(){
 		//using the global data layout
 		allocInfo.pSetLayouts = &descriptorSetLayout;
 
-		CHECK_VK_RESULT(vkAllocateDescriptorSets(device.logical, &allocInfo, &frame.descriptorSet), "Failed to allocate Descriptor Set");
+		CHECK_VK_RESULT(device.logical.allocateDescriptorSets(&allocInfo, &frame.descriptorSet), "Failed to allocate Descriptor Set");
     
         //information about the buffer we want to point at in the descriptor
-		VkDescriptorBufferInfo binfo = {};
+		vk::DescriptorBufferInfo binfo = {};
 		//it will be the camera buffer
 		binfo.buffer = frame.cameraBuffer.buffer;
 		//at 0 offset
@@ -746,9 +751,7 @@ void GameZero::Renderer::InitDescriptors(){
 		//of the size of a camera data struct
 		binfo.range = sizeof(GPUCameraData);
 
-		VkWriteDescriptorSet setWrite = {};
-		setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-		setWrite.pNext = nullptr;
+		vk::WriteDescriptorSet setWrite = {};
 		//we are going to write into binding number 0
 		setWrite.dstBinding = 0;
 		//of the global descriptor
@@ -756,142 +759,135 @@ void GameZero::Renderer::InitDescriptors(){
 
 		setWrite.descriptorCount = 1;
 		//and the type is uniform buffer
-		setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		setWrite.descriptorType = vk::DescriptorType::eUniformBuffer;
 		setWrite.pBufferInfo = &binfo;
 
         // update
-		vkUpdateDescriptorSets(device.logical, 1, &setWrite, 0, nullptr);
+		device.logical.updateDescriptorSets(
+            1, /* write count */ 
+            &setWrite, /* writes */
+            0, /* copy count */
+            nullptr /* copies */
+        );
     }
 }
 
-void GameZero::Renderer::ImmediateSubmit(std::function<void (VkCommandBuffer)> &&function){
+void GameZero::Renderer::ImmediateSubmit(std::function<void (vk::CommandBuffer)> &&function){
     // allocate default command buffer that we will use for instant commands
-    VkCommandBufferAllocateInfo cmdBuffAllocInfo = {};
-    cmdBuffAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    vk::CommandBufferAllocateInfo cmdBuffAllocInfo = {};
     cmdBuffAllocInfo.commandBufferCount = 1;
     cmdBuffAllocInfo.commandPool = uploadContext.commandPool;
-    cmdBuffAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    cmdBuffAllocInfo.level = vk::CommandBufferLevel::ePrimary;
 
     // allocate
-    VkCommandBuffer cmd;
-    CHECK_VK_RESULT(vkAllocateCommandBuffers(device.logical, &cmdBuffAllocInfo, &cmd), "Failed to allocate Command Buffer");
+    vk::CommandBuffer cmd;
+    CHECK_VK_RESULT(device.logical.allocateCommandBuffers(&cmdBuffAllocInfo, &cmd), "Failed to allocate Command Buffer");
     
     // begin command buffer
     // we will use this command buffer only once, unlike in a draw command
-    VkCommandBufferBeginInfo cmdBeginInfo = {};
-    cmdBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    cmdBeginInfo.flags = VkCommandBufferUsageFlagBits::VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    vk::CommandBufferBeginInfo cmdBeginInfo = {};
+    cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
     // begin recording
-    CHECK_VK_RESULT(vkBeginCommandBuffer(cmd, &cmdBeginInfo), "Failed to begin Command Buffer recording");
+    cmd.begin(cmdBeginInfo);
 
     // execute function
     function(cmd);
 
     // end recording
-    CHECK_VK_RESULT(vkEndCommandBuffer(cmd), "Failed to end Command Buffer recording");
+    cmd.end();   
 
     // submit info
-    VkSubmitInfo submitInfo = {};
-    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    vk::SubmitInfo submitInfo = {};
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
     submitInfo.signalSemaphoreCount = 0;
     submitInfo.waitSemaphoreCount = 0;
 
     // submit to graphics queue
-    CHECK_VK_RESULT(vkQueueSubmit(device.graphicsQueue, 1, &submitInfo, uploadContext.uploadFence), "Failed to submit Command Buffer");
+    CHECK_VK_RESULT(device.graphicsQueue.submit(1, &submitInfo, uploadContext.uploadFence), "Failed to submit Command Buffer");
 
     // wait for operations to complete
     // and then reset fence
-    CHECK_VK_RESULT(vkWaitForFences(device.logical, 1, &uploadContext.uploadFence, VK_TRUE, 1e9), "Failed to wait for Fence");
-    CHECK_VK_RESULT(vkResetFences(device.logical, 1, &uploadContext.uploadFence), "Failed to reset Fence");
+    CHECK_VK_RESULT(device.logical.waitForFences(1, &uploadContext.uploadFence, VK_TRUE, 1e9), "Failed to wait for Fence");
+    CHECK_VK_RESULT(device.logical.resetFences(1, &uploadContext.uploadFence), "Failed to reset Fence");
 
     // reset command pool
-    CHECK_VK_RESULT(vkResetCommandPool(device.logical, uploadContext.commandPool, 0), "Failed to reset Command Pool");
+    device.logical.resetCommandPool(uploadContext.commandPool);
 }
 
 void GameZero::Renderer::UploadMeshToGPU(Mesh* mesh, bool useStaging){
 	// no staging buffer
 	if(!useStaging){
-		VkBufferCreateInfo  bufferInfo = {};
-		bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vk::BufferCreateInfo  bufferInfo = {};
 		bufferInfo.size = mesh->vertices.size() * sizeof(Vertex);
-		bufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+		bufferInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer;
 
 		// cpu to gpu read is slow
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+		vma::AllocationCreateInfo allocInfo({}, vma::MemoryUsage::eCpuToGpu);
 
 		// create buffer
-		CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &allocInfo, &mesh->vertexBuffer.buffer, &mesh->vertexBuffer.allocation, nullptr), "Failed to create vertex buffer")
+		CHECK_VK_RESULT(device.allocator.createBuffer(&bufferInfo, &allocInfo, &mesh->vertexBuffer.buffer, &mesh->vertexBuffer.allocation, nullptr), "Failed to create vertex buffer");
         // deletor
         PushFunction([=](){
-            vmaDestroyBuffer(allocator, mesh->vertexBuffer.buffer, mesh->vertexBuffer.allocation);
-            LOG(INFO, "Destroyed Vertex Buffer for mesh");
+            device.allocator.destroyBuffer(mesh->vertexBuffer.buffer, mesh->vertexBuffer.allocation);
         });
 
 		// copy vertex data
 		void* data;
-		vmaMapMemory(allocator, mesh->vertexBuffer.allocation, &data);
+		device.allocator.mapMemory(mesh->vertexBuffer.allocation, &data);
 		memcpy(data, mesh->vertices.data(), mesh->vertices.size() * sizeof(Vertex));
-		vmaUnmapMemory(allocator, mesh->vertexBuffer.allocation);
+		device.allocator.unmapMemory(mesh->vertexBuffer.allocation);
 	}else{
 		// use staging buffer
 		// staging buffer is basically a cpu only buffer copied to gpu only buffer
 		// that gpu only buffer is called staged buffer
 		const size_t bufferSize = mesh->vertices.size() * sizeof(Vertex);
 		// allocate staging buffer
-		VkBufferCreateInfo stagingBufferInfo = {};
-		stagingBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vk::BufferCreateInfo stagingBufferInfo = {};
 		stagingBufferInfo.size = bufferSize;
 		// this is source of transfer
-		stagingBufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+		stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
 
 		// we want this data to be cpu readble only
-		VmaAllocationCreateInfo allocInfo = {};
-		allocInfo.usage = VMA_MEMORY_USAGE_CPU_COPY;
+		vma::AllocationCreateInfo allocInfo = {};
+		allocInfo.usage = vma::MemoryUsage::eCpuOnly;
 		
 		AllocatedBuffer stagingBuffer;
 
 		// allocate buffer
-		CHECK_VK_RESULT(vmaCreateBuffer(allocator, &stagingBufferInfo, &allocInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, nullptr), "Failed to create Staging Buffer");
+		CHECK_VK_RESULT(device.allocator.createBuffer(&stagingBufferInfo, &allocInfo, &stagingBuffer.buffer, &stagingBuffer.allocation, nullptr), "Failed to create Staging Buffer");
 
 		// copy data to staging buffer
 		void *data;
-		vmaMapMemory(allocator, stagingBuffer.allocation, &data);
+		device.allocator.mapMemory(stagingBuffer.allocation, &data);
 		memcpy(data, mesh->vertices.data(), bufferSize);
-		vmaUnmapMemory(allocator, stagingBuffer.allocation);
+		device.allocator.unmapMemory(stagingBuffer.allocation);
 
 		// create staged buffer
-		VkBufferCreateInfo stagedBufferInfo = {};
-		stagedBufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		vk::BufferCreateInfo stagedBufferInfo = {};
 		stagedBufferInfo.size = bufferSize;
 		// this is destination of a transfer operation and also a vertex buffer at the same time
-		stagedBufferInfo.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT  | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		stagedBufferInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer  | vk::BufferUsageFlagBits::eTransferDst;
 
 		// this buffer will be gpu only
-		allocInfo.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		allocInfo.usage = vma::MemoryUsage::eGpuOnly;
 
 		// allocate buffer
-		CHECK_VK_RESULT(vmaCreateBuffer(allocator, &stagedBufferInfo, &allocInfo, &mesh->vertexBuffer.buffer, &mesh->vertexBuffer.allocation, nullptr), "Failed to create Staged Buffer");
+		CHECK_VK_RESULT(device.allocator.createBuffer(&stagedBufferInfo, &allocInfo, &mesh->vertexBuffer.buffer, &mesh->vertexBuffer.allocation, nullptr), "Failed to create Staged Buffer");
         // deletor
         PushFunction([=](){
-            vmaDestroyBuffer(allocator, mesh->vertexBuffer.buffer, mesh->vertexBuffer.allocation);
-            LOG(INFO, "Destroyed Vertex Buffer for mesh");
+            device.allocator.destroyBuffer(mesh->vertexBuffer.buffer, mesh->vertexBuffer.allocation);
         });
 
 		// perform an immediate copy operation
-        ImmediateSubmit([=](VkCommandBuffer cmd){
-            VkBufferCopy copy;
-            copy.dstOffset = 0;
-            copy.srcOffset = 0;
-            copy.size = bufferSize;
-            vkCmdCopyBuffer(cmd, stagingBuffer.buffer, mesh->vertexBuffer.buffer, 1, &copy);
+        ImmediateSubmit([=](vk::CommandBuffer cmd){
+            vk::BufferCopy copy(0, 0, bufferSize);
+            cmd.copyBuffer(stagingBuffer.buffer, mesh->vertexBuffer.buffer, 1, &copy);
         });
 
         // after copy, destroy staging buffer as we dont need it anymore
-        vmaDestroyBuffer(allocator, stagingBuffer.buffer, stagingBuffer.allocation);
+        device.allocator.destroyBuffer(stagingBuffer.buffer, stagingBuffer.allocation);
 	}
 }
 
@@ -899,26 +895,24 @@ void GameZero::Renderer::LoadImages(){
     Texture texture;
     LoadImageFromFile(this, "../assets/textures/lost_empire-RGBA.png", texture.image);
     
-    VkImageViewCreateInfo imageViewInfo = {};
-    imageViewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    imageViewInfo.format = VK_FORMAT_R8G8B8A8_SRGB;
+    vk::ImageViewCreateInfo imageViewInfo = {};
+    imageViewInfo.format = vk::Format::eR8G8B8A8Srgb;
     imageViewInfo.image = texture.image.image;
-    imageViewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-    imageViewInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
-    imageViewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    imageViewInfo.viewType = vk::ImageViewType::e2D;
+    imageViewInfo.components.r = vk::ComponentSwizzle::eIdentity;
+    imageViewInfo.components.g = vk::ComponentSwizzle::eIdentity;
+    imageViewInfo.components.b = vk::ComponentSwizzle::eIdentity;
+    imageViewInfo.components.a = vk::ComponentSwizzle::eIdentity;
+    imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
     imageViewInfo.subresourceRange.baseArrayLayer = 0;
     imageViewInfo.subresourceRange.baseMipLevel = 0;
     imageViewInfo.subresourceRange.layerCount = 1;
     imageViewInfo.subresourceRange.levelCount = 1;
 
     // create image view
-    CHECK_VK_RESULT(vkCreateImageView(device.logical, &imageViewInfo, nullptr, &texture.imageView), "Failed to create Wmage View");
+    texture.image.view = device.logical.createImageView(imageViewInfo);
     PushFunction([=](){
-        vkDestroyImageView(device.logical, texture.imageView, nullptr);
-        LOG(INFO, "Destroted Image View");
+        device.logical.destroyImageView(texture.image.view);
     });
 
     textures["empire_diffuse"] = texture;

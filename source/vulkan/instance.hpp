@@ -28,7 +28,6 @@ namespace GameZero{
     #define VK_LAYER_LUNARG_MONITOR_LAYER_NAME            "VK_LAYER_LUNARG_monitor"
     #define VK_LAYER_LUNARG_SCREENSHOT_LAYER_NAME         "VK_LAYER_LUNARG_screenshot"
 
-
     /// get global vulkan instance
     const vk::Instance& GetVulkanInstance();
 }

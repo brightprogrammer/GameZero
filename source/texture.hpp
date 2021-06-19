@@ -7,11 +7,10 @@
 
 namespace GameZero{
 
-    bool LoadImageFromFile(struct Renderer *renderer, const char* file, AllocatedImage& outImage);
+    bool LoadImageFromFile(struct Renderer* renderer, const char* file, AllocatedImage& outImage);
 
     struct Texture{
         AllocatedImage image;
-        VkImageView imageView;
     };
 
 }

@@ -6,7 +6,7 @@
 #include "SDL2/SDL_video.h"
 #include "utils.hpp"
 #include "math.hpp"
-#include "vulkan/globals.hpp"
+#include "vulkan/instance.hpp"
 #include "vulkan/vulkan_core.h"
 #include <cstdio>
 

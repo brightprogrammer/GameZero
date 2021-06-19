@@ -10,12 +10,14 @@
  */
 
 #include "device.hpp"
-#include "globals.hpp"
-#include "../utils.hpp"
+#include "instance.hpp"
 #include "vk_mem_alloc.hpp"
-#include "vulkan/vulkan.hpp"
+#include "../utils.hpp"
 #include "../window.hpp"
 #include "../app_state.hpp"
+
+#include <vulkan/vulkan.hpp>
+
 #include <set>
 
 using namespace GameZero;
@@ -37,6 +39,7 @@ std::vector<const char*> GetPhysicalDeviceExtensionNames(const vk::PhysicalDevic
 
 // rate a given physical device
 uint32_t RatePhysicalDevice(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface){
+    LOG(DEBUG, "DONE HERE")
     // device score
     uint32_t score = 0;
 
@@ -80,19 +83,18 @@ uint32_t RatePhysicalDevice(const vk::PhysicalDevice& physicalDevice, const vk::
     }
 
     // check surface presentation support
-    {
-        uint i = 0;
-        vk::Bool32 presentationSupported;
-        for(const auto& queue : queues){
-            presentationSupported = physicalDevice.getSurfaceSupportKHR(i, surface);
-            if(presentationSupported) break; else i++;
-        }
-
-        // it may happen that we reached the end and we never got the queue
-        // in that case we have to check it differently
-        if(i+1 == queues.size() && !presentationSupported) score = 0;
-        else score += 110000;
+    uint queueIdx = 0;
+    vk::Bool32 presentationSupported;
+    for(const auto& queue : queues){
+        ASSERT(surface, "SURFACE LOST")
+        presentationSupported = physicalDevice.getSurfaceSupportKHR(queueIdx, surface);
+        if(presentationSupported) break; else queueIdx++;
     }
+    // it may happen that we reached the end and we never got the queue
+    // in that case we have to check it differently
+    if(queueIdx+1 == queues.size() && !presentationSupported) score = 0;
+    else score += 110000;
+    LOG(DEBUG, "DONE HERE")
 
     // get device extension names
     std::vector<const char*> extensions = GetPhysicalDeviceExtensionNames(physicalDevice);
@@ -147,7 +149,8 @@ int32_t GetPhysicalDeviceSurfaceSupportQueueIndex(const vk::PhysicalDevice &phys
 void GameZero::Device::SelectBestPhysicalDevice(const Surface& surface){
     // device list
     auto physicalDeviceList = GetVulkanInstance().enumeratePhysicalDevices();
-            
+    ASSERT(physicalDeviceList.size() > 0, "No Vulkan capable devices found on host")
+
     // start with score = 0
     // if we find a score greater than this score then
     // select that as score and that as selected physical devie
@@ -238,7 +241,11 @@ GameZero::Device::Device(const Surface& surface){
 
 // create device
 void GameZero::Device::Create(const Surface &surface){
+    LOG(DEBUG, "DONE HERE");
     SelectBestPhysicalDevice(surface);
+    LOG(DEBUG, "DONE HERE");
     CreateDevice(surface);
+    LOG(DEBUG, "DONE HERE");
     CreateAllocator();
+    LOG(DEBUG, "DONE HERE");
 }

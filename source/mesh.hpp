@@ -13,6 +13,7 @@
 #define GAMEZERO_MESH_HPP
 
 #include "utils.hpp"
+#include "vulkan/vulkan.hpp"
 #include "vulkan/vulkan_core.h"
 #include "vulkan/types.hpp"
 
@@ -20,10 +21,10 @@ namespace GameZero {
 
     /// vertex input description describes vertex buffer data
     struct VertexInputDescription{
-        std::vector<VkVertexInputBindingDescription> bindings;
-        std::vector<VkVertexInputAttributeDescription> attributes;
+        std::vector<vk::VertexInputBindingDescription> bindings;
+        std::vector<vk::VertexInputAttributeDescription> attributes;
     
-        VkPipelineVertexInputStateCreateFlags flags = 0;
+        vk::PipelineVertexInputStateCreateFlags flags = {};
     };
 
     /// vertex

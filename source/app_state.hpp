@@ -16,21 +16,15 @@ namespace GameZero{
         /// application version
         uint32_t version = 0;
 
+        /// main window
+        struct Window* mainWindow {nullptr};
+
         /// should I enable vulkan validation layers?
         bool enableValidation = false;
-
-        /// main window that this application will have
-        struct Window* mainWindow {nullptr};
     };
 
     inline ApplicationState* GetApplicationState(){
         return ApplicationState::Get();
-    }
-
-    /// get the application's main window pointer.
-    /// this is the window that you set in application state.
-    inline struct Window* GetMainWindow(){
-        return GetApplicationState()->mainWindow;
     }
 
     /// get the name of this application
@@ -38,8 +32,14 @@ namespace GameZero{
         return GetApplicationState()->name;
     }
 
+    /// get application version from app state
     inline const uint32_t GetApplicationVersion(){
         return GetApplicationState()->version;
+    }
+
+    /// get main sdl window
+    inline struct Window* GetMainWindow(){
+        return GetApplicationState()->mainWindow;
     }
 }
 

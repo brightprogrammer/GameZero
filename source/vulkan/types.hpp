@@ -11,15 +11,14 @@
 namespace GameZero{
     /// represents allocated buffer by vulkan memory allocator
     struct AllocatedBuffer{
-        VkBuffer buffer;
+        vk::Buffer buffer;
         vma::Allocation allocation;
     };
 
     // create buffer
-    inline AllocatedBuffer CreateBuffer(vma::Allocator allocator, size_t allocSize, VkBufferUsageFlags usage, vma::MemoryUsage memUsage){
+    inline AllocatedBuffer CreateBuffer(const vma::Allocator& allocator, size_t allocSize, vk::BufferUsageFlags usage, vma::MemoryUsage memUsage){
         //allocate vertex buffer
-        VkBufferCreateInfo bufferInfo = {};
-        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        vk::BufferCreateInfo bufferInfo = {};
         bufferInfo.pNext = nullptr;
         bufferInfo.size = allocSize;
         bufferInfo.usage = usage;
@@ -30,20 +29,16 @@ namespace GameZero{
         AllocatedBuffer newBuffer;
 
         //allocate the buffer
-        LOG(DEBUG, "CREATE BUFFER, NOTHING IS BEING CREATED HERE")
-        // CHECK_VK_RESULT(vmaCreateBuffer(allocator, &bufferInfo, &vmaallocInfo,
-        //     &newBuffer.buffer,
-        //     &newBuffer.allocation,
-        //     nullptr), "Failed to allocate Buffer");
-
+        CHECK_VK_RESULT(allocator.createBuffer(&bufferInfo, &vmaallocInfo, &newBuffer.buffer, &newBuffer.allocation, nullptr), "Failed to allocate Buffer");
+        
         return newBuffer;
     }
 
     /// material
     struct Material{
-        VkDescriptorSet textureSet = VK_NULL_HANDLE;
-        VkPipeline pipeline;
-        VkPipelineLayout pipelineLayout;
+        vk::DescriptorSet textureSet = VK_NULL_HANDLE;
+        vk::Pipeline pipeline;
+        vk::PipelineLayout pipelineLayout;
     };
 
     /// render object

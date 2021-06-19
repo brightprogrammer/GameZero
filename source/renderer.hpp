@@ -77,9 +77,9 @@ namespace GameZero{
         FrameData frames[FrameOverlapCount];
 
         /// default graphics pipeline
-        VkPipeline pipeline;
+        vk::Pipeline pipeline;
         /// default graphics pipeline layout
-        VkPipelineLayout pipelineLayout;
+        vk::PipelineLayout pipelineLayout;
 
         /// simple mesh
         Mesh mesh;
@@ -96,9 +96,9 @@ namespace GameZero{
         std::vector<RenderObject> renderables;
 
         /// global descriptor set layout for sending uniform data
-        VkDescriptorSetLayout descriptorSetLayout;
+        vk::DescriptorSetLayout descriptorSetLayout;
         /// global descriptor pool for allocation of uniforms
-        VkDescriptorPool descriptorPool;
+        vk::DescriptorPool descriptorPool;
 
         /// camera data contains camera matrices : model, view, projection
         /// model is updated by renderer but view and projection are updated in main.cpp
@@ -109,13 +109,13 @@ namespace GameZero{
         UploadContext uploadContext;
 
         /// descriptor set layout for uploading a single texture at a time
-        VkDescriptorSetLayout singleTextureSetLayout;
+        vk::DescriptorSetLayout singleTextureSetLayout;
 
         /// map of textures with their unique name
         std::unordered_map<std::string, Texture> textures;
 
         /// create material and add it to material map
-        Material* CreateMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name);
+        Material* CreateMaterial(vk::Pipeline pipeline, vk::PipelineLayout layout, const std::string& name);
 
         /// get material using name. returns nullptr if not found
         Material* GetMaterial(const std::string& name);
@@ -158,14 +158,14 @@ namespace GameZero{
          * @param firstObject : first object in an array
          * @param count : total number of objects to draw
          */
-        void DrawObjects(VkCommandBuffer cmd, RenderObject* firstObject, uint32_t count);
+        void DrawObjects(vk::CommandBuffer cmd, RenderObject* firstObject, uint32_t count);
     
         /**
          * @brief Immediately submit a command buffer without any extra sync
          * 
          * @param function : contains vkCmdXXXX(...)
          */
-        void ImmediateSubmit(std::function<void(VkCommandBuffer cmd)>&& function);
+        void ImmediateSubmit(std::function<void(vk::CommandBuffer cmd)>&& function);
 
         /**
          * @brief Upload a given mest to gpu

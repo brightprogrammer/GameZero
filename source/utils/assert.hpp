@@ -19,8 +19,8 @@ namespace GameZero{
 
 /// to check vk result values
 #define CHECK_VK_RESULT(statement, ...) {\
-    VkResult res = statement; \
-    if(res != VK_SUCCESS){ \
+    vk::Result res = statement; \
+    if(res != vk::Result::eSuccess){ \
         printf("\nASSERT FAILURE [ %s ]\n", #statement); \
         printf("ERROR RAISED FROM FUNCTION[ %s ] LINE[%i] FILE[%s]", __FUNCTION__, __LINE__, __FILE__); \
         printf("\n\t"); \

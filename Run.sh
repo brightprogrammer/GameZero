@@ -1,7 +1,8 @@
 #!/bin/sh
 
 # configure this variable before building
-PROJECT_ROOT_DIR=/home/brightprogrammer/Projects/GameEngine/GameZero
+PROJECT_ROOT_DIR=/home/brightprogrammer/Projects/GameProjects/GameZero
+NUM_THEADS_PER_BUILD=4
 
 # make build directory if not present
 cd $PROJECT_ROOT_DIR
@@ -29,13 +30,14 @@ CompileShader shader.frag frag.spv
 # build
 echo "building..."
 cd build # in project root dir
-rm -fv CMakeCache.txt # from project bin dir
+# rm -fv CMakeCache.txt # from project bin dir
 
 # generate makefile
-cmake .. -G Ninja
-ninja
+cmake ..
+make -j$NUM_THEADS_PER_BUILD
+./GameZero
 cd .. # project root
 
 # make symbolic links
-ln -sfv $PROJECT_ROOT_DIR/build/compile_commands.json $PROJECT_ROOT_DIR/compile_commands.json
-ln -sfv $PROJECT_ROOT_DIR/build/GameZero $PROJECT_ROOT_DIR/GameZero
+# ln -sfv $PROJECT_ROOT_DIR/build/compile_commands.json $PROJECT_ROOT_DIR/compile_commands.json
+# ln -sfv $PROJECT_ROOT_DIR/build/GameZero $PROJECT_ROOT_DIR/GameZero

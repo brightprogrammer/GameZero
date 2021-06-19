@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.5.0)
 
-set(CMAKE_C_COMPILER "/usr/bin/clang")
-#set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
-
 project(GameZero VERSION 0.0.0.0)
 
 # configure variables
