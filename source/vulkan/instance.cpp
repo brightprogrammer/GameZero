@@ -12,14 +12,14 @@
 
 using namespace GameZero;
 
-// vulkan instance
-static vk::Instance instance;
+// // vulkan instance
+// static vk::Instance instance;
 
-// is vulkan instance created?
-static bool isInstanceCreated = false;
+// // is vulkan instance created?
+// static bool isInstanceCreated = false;
 
 // create vulkan instance
-void CreateInstance(){
+vk::Instance CreateInstance(){
     // application info
     vk::ApplicationInfo appInfo(
         GetApplicationName(),
@@ -54,19 +54,10 @@ void CreateInstance(){
     );
 
     // create instance
-    instance = vk::createInstance(icInfo);
-    // add to destruction
-    GetDestructionQueue()->PushFunction([=](){
-        instance.destroy();
-    });
+    return vk::createInstance(icInfo);
 }
 
 // return created instance
-const vk::Instance& GameZero::GetVulkanInstance(){
-    if(!isInstanceCreated){
-        CreateInstance();
-        isInstanceCreated = true;
-    }
-
-    return instance;
+GameZero::Instance::Instance(){
+    instance = CreateInstance();
 }

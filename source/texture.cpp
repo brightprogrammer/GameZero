@@ -120,7 +120,7 @@ bool GameZero::LoadImageFromFile(Renderer* renderer, const char *filename, Alloc
     LOG(INFO, "Texture image [ %s ] successfully loaded", filename);
 
     // deletor
-    GetDestructionQueue()->PushFunction([=](){
+    renderer->PushFunction([=](){
         renderer->device.allocator.destroyImage(image.image, image.allocation);
     });
 

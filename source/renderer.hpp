@@ -49,15 +49,11 @@ namespace GameZero{
         void InitDescriptors();
         /// load images
         void LoadImages();
-        
-        /// add a new function to deletion queue
-        inline void PushFunction(std::function<void()>&& function) noexcept{
-            GetDestructionQueue()->PushFunction(std::move(function));
-        }
     public:
         /// window that this renderer renders to
         Window& window;
 
+        /// renderer surface
         Surface surface;
 
         /// device used by the renderer
@@ -68,6 +64,14 @@ namespace GameZero{
 
         /// default renderpass
         RenderPass renderPass;
+
+        /// destruction queue for this renderer
+        DestructionQueue deletors;
+
+        /// add a new function to deletion queue
+        inline void PushFunction(std::function<void()>&& function) noexcept{
+            deletors.PushFunction(std::move(function));
+        }
 
         /// current frame number
         size_t frameNumber = 0;

@@ -26,7 +26,9 @@ int main(){
     app->name = "GameZero";
     app->version = time(nullptr);
     app->enableValidation = true;
+    app->mainWindow = &window;
 
+    // create renderer for winodw
     GameZero::Renderer renderer(window);
 
     // set window event callback
@@ -127,4 +129,6 @@ int main(){
 
         renderer.Draw();
     }
+
+    return 0;
 }

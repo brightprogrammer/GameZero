@@ -1,4 +1,4 @@
-#!/bin/zsh
+#!/bin/bash
 
 # --------------- WARNING --------- WARNING -----------------#
 #           run this script from project root only           #
@@ -13,7 +13,7 @@ THREADS_PER_BUILD=2
 
 # change to project submodule directory
 cd $PROJECT_SUBMODULE_DIRECTORY
-git submodule update --recursive
+git submodule update --init --recursive
 cd $PROJECT_ROOT_DIRECTORY
 
 # function to build submodules

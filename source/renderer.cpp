@@ -21,6 +21,9 @@ GameZero::Renderer::~Renderer(){
     // wait for all device operations to complete
     device.logical.waitIdle();
 
+    // call all destructors
+    deletors.Flush();
+
     // destroy swapchain
     swapchain.Destroy(device);
     // destroy device
@@ -32,40 +35,25 @@ GameZero::Renderer::~Renderer(){
 
 // initialize renderer
 void GameZero::Renderer::Initialize(){
-    LOG(DEBUG, "DONE HERE");
     InitSurface();
-    LOG(DEBUG, "DONE HERE");
     InitDevice();
-    LOG(DEBUG, "DONE HERE");
+    InitSwapchain();
     InitCommands();
-    LOG(DEBUG, "DONE HERE");
     InitDepthImage();
-    LOG(DEBUG, "DONE HERE");
     InitRenderPass();
-    LOG(DEBUG, "DONE HERE");
     InitFramebuffers();
-    LOG(DEBUG, "DONE HERE");
     InitSyncStructures();
-    LOG(DEBUG, "DONE HERE");
     InitDescriptors();
-    LOG(DEBUG, "DONE HERE");
     InitPipelineLayouts();
-    LOG(DEBUG, "DONE HERE");
     InitPipelines();
-    LOG(DEBUG, "DONE HERE");
     InitMesh();
-    LOG(DEBUG, "DONE HERE");
     LoadImages();
-    LOG(DEBUG, "DONE HERE");
     InitScene();
-    LOG(DEBUG, "DONE HERE");
 }
 
 // create surface for given window to this renderer
 void GameZero::Renderer::InitSurface(){
-    LOG(DEBUG, "DONE HERE");
-    surface.Create(window);
-    LOG(DEBUG, "DONE HERE");
+    surface.Create(&window);
 }
 
 // init device for the renderer
@@ -128,17 +116,18 @@ void GameZero::Renderer::InitDepthImage(){
         vk::ImageUsageFlagBits::eDepthStencilAttachment /* usage */
     );
     
-    vma::AllocationCreateInfo imageAllocInfo = {};
+    vma::AllocationCreateInfo imageAllocInfo;
     imageAllocInfo.usage = vma::MemoryUsage::eGpuOnly;
     imageAllocInfo.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
 
-    device.allocator.createImage(&imageInfo, &imageAllocInfo, &depthImage.image, &depthImage.allocation, nullptr);
+    // create image
+    device.allocator.createImage(&imageInfo, &imageAllocInfo, &(depthImage.image), &depthImage.allocation, nullptr);
     // deletor
     PushFunction([=](){
         device.allocator.destroyImage(depthImage.image, depthImage.allocation);
     });
 
-    vk::ImageViewCreateInfo imageViewInfo = {};
+    vk::ImageViewCreateInfo imageViewInfo;
     imageViewInfo.viewType = vk::ImageViewType::e2D;
     imageViewInfo.image = depthImage.image;
     imageViewInfo.format = vk::Format::eD32Sfloat;
@@ -146,7 +135,7 @@ void GameZero::Renderer::InitDepthImage(){
 	imageViewInfo.subresourceRange.levelCount = 1;
 	imageViewInfo.subresourceRange.baseArrayLayer = 0;
 	imageViewInfo.subresourceRange.layerCount = 1;
-	imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+	imageViewInfo.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth;
 
     // create image view
     depthImage.view = device.logical.createImageView(imageViewInfo);
@@ -158,33 +147,35 @@ void GameZero::Renderer::InitDepthImage(){
 
 // init renderpass
 void GameZero::Renderer::InitRenderPass(){
-    vk::AttachmentDescription colorAttachment(
-        {}, /* flags */
-        swapchain.imageFormat, /* format */
-        vk::SampleCountFlagBits::e1, /* sample count */
-        vk::AttachmentLoadOp::eClear, /* attachment load op*/
-        vk::AttachmentStoreOp::eStore, /* attachment store op*/
-        vk::AttachmentLoadOp::eDontCare, /* stencil load op */
-        vk::AttachmentStoreOp::eDontCare /* stencil store op */
-    );
+    vk::AttachmentDescription colorAttachment;
+    colorAttachment.format = swapchain.imageFormat;
+    colorAttachment.samples = vk::SampleCountFlagBits::e1;
+    colorAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    colorAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+    colorAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    colorAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    // layout of image before renderpass
+    colorAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    // layout of image after renderpass
+    colorAttachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
     
 
     // make an attachment reference for subpass
     vk::AttachmentReference colorAttachmentRef(
         0, /* attachment */
-        vk::ImageLayout::eColorAttachmentOptimal /* layout */
+        vk::ImageLayout::eColorAttachmentOptimal /* layout during sub render pass */
     );
 
     // depth attachment
-    vk::AttachmentDescription depthAttachment(
-        {}, /* flags */
-        vk::Format::eD32Sfloat, /* format */
-        vk::SampleCountFlagBits::e1, /* sample count */
-        vk::AttachmentLoadOp::eClear, /* load op */
-        vk::AttachmentStoreOp::eStore, /* store op */
-        vk::AttachmentLoadOp::eDontCare, /* stencil load op */
-        vk::AttachmentStoreOp::eDontCare /* stencil store op */
-    );
+    vk::AttachmentDescription depthAttachment;
+    depthAttachment.format = vk::Format::eD32Sfloat;
+    depthAttachment.samples = vk::SampleCountFlagBits::e1;
+    depthAttachment.loadOp = vk::AttachmentLoadOp::eClear;
+    depthAttachment.storeOp = vk::AttachmentStoreOp::eStore;
+    depthAttachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    depthAttachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    depthAttachment.initialLayout = vk::ImageLayout::eUndefined;
+    depthAttachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
     // depth attachment reference
     vk::AttachmentReference depthAttachmentRef(
@@ -298,10 +289,9 @@ void GameZero::Renderer::Draw(){
     cmd.begin(cmdBeginInfo);
 
     // clear value for color attachment on renderpass begin
-    vk::ClearValue colorClear;
-    colorClear.color = {};
+    vk::ClearValue colorClear(std::array<float, 4>{0.f, 0.f, 0.f, 1.f});
 
-    vk::ClearValue depthClear = {};
+    vk::ClearValue depthClear;
     depthClear.depthStencil.depth = 1.f;
     
     vk::ClearValue clearValues[2] = { colorClear, depthClear};
@@ -332,13 +322,10 @@ void GameZero::Renderer::Draw(){
 
     // prepare to submit command buffer
     vk::SubmitInfo submitInfo;
-    
     submitInfo.waitSemaphoreCount = 1;
     submitInfo.pWaitSemaphores = &frame.presentSemaphore;
-
     submitInfo.signalSemaphoreCount = 1;
     submitInfo.pSignalSemaphores = &frame.renderSemaphore;
-
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
 
@@ -348,7 +335,7 @@ void GameZero::Renderer::Draw(){
     // submit command buffer to graphisc queue
     // render fence will now block cpu when cpu issues a vkWaitForFences until unless rendering is done
     device.graphicsQueue.submit(submitInfo, frame.renderFence);
-    
+
     // after rendering we need to show it on screen
     vk::PresentInfoKHR presentInfo(
         1, /* wait semaphore count */
@@ -360,7 +347,7 @@ void GameZero::Renderer::Draw(){
 
     // present to surface
     ASSERT(device.presentQueue.presentKHR(presentInfo) == vk::Result::eSuccess, "Failed to present rendered images");
-    
+
     // next frame
     frameNumber++;
 }
@@ -459,7 +446,7 @@ void GameZero::Renderer::InitPipelines(){
     );
 
     // depth stencil state
-    vk::PipelineDepthStencilStateCreateInfo depthStencil = {};
+    vk::PipelineDepthStencilStateCreateInfo depthStencil;
     // draw on other objects
     depthStencil.depthTestEnable = true;
     // write depth value
@@ -469,7 +456,7 @@ void GameZero::Renderer::InitPipelines(){
     depthStencil.stencilTestEnable = false;
 
     // color blend attachment
-    vk::PipelineColorBlendAttachmentState colorBlendAttachment = {};
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment;
     colorBlendAttachment.colorWriteMask =   vk::ColorComponentFlagBits::eA |
                                             vk::ColorComponentFlagBits::eR |
                                             vk::ColorComponentFlagBits::eG |
@@ -484,7 +471,7 @@ void GameZero::Renderer::InitPipelines(){
     colorBlending.logicOp = vk::LogicOp::eCopy;
 
     // viewport
-    vk::Viewport viewport = {};
+    vk::Viewport viewport;
     viewport.width = static_cast<float>(window.size.x);
     viewport.height = static_cast<float>(window.size.y);
     viewport.x = 0;
@@ -496,13 +483,13 @@ void GameZero::Renderer::InitPipelines(){
     vk::Rect2D scissor = {{0, 0}, window.GetExtent()};
 
     // viewport state
-    vk::PipelineViewportStateCreateInfo viewportState = {};
+    vk::PipelineViewportStateCreateInfo viewportState;
     viewportState.viewportCount = 1;
     viewportState.pViewports = &viewport;
     viewportState.scissorCount = 1;
     viewportState.pScissors = &scissor;
 
-    vk::GraphicsPipelineCreateInfo graphicsPipelineInfo = {};
+    vk::GraphicsPipelineCreateInfo graphicsPipelineInfo;
     graphicsPipelineInfo.stageCount = 2;
     graphicsPipelineInfo.pStages = shaderStages;
     graphicsPipelineInfo.pVertexInputState = &vertexInput;
@@ -612,7 +599,7 @@ void GameZero::Renderer::DrawObjects(vk::CommandBuffer cmd, RenderObject *firstO
 }
 
 void GameZero::Renderer::InitScene(){
-    vk::SamplerCreateInfo samplerInfo = {};
+    vk::SamplerCreateInfo samplerInfo;
     samplerInfo.addressModeU = vk::SamplerAddressMode::eRepeat;
     samplerInfo.addressModeV = vk::SamplerAddressMode::eRepeat;
     samplerInfo.addressModeW = vk::SamplerAddressMode::eRepeat;
@@ -632,19 +619,19 @@ void GameZero::Renderer::InitScene(){
     object.material = GetMaterial("default");
     if(!object.material) LOG(DEBUG, "Failed to Get Material");
 
-    vk::DescriptorSetAllocateInfo allocInfo = {};
+    vk::DescriptorSetAllocateInfo allocInfo;
 	allocInfo.descriptorPool = descriptorPool;
 	allocInfo.descriptorSetCount = 1;
 	allocInfo.pSetLayouts = &singleTextureSetLayout;
 
     CHECK_VK_RESULT(device.logical.allocateDescriptorSets(  &allocInfo, &object.material->textureSet), "Failed to allocate Descriptor Set");
 
-    vk::DescriptorImageInfo imageBufferInfo = {};
+    vk::DescriptorImageInfo imageBufferInfo;
 	imageBufferInfo.sampler = blockySampler;
 	imageBufferInfo.imageView = textures["empire_diffuse"].image.view;
 	imageBufferInfo.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
 
-    vk::WriteDescriptorSet textureWrite = {};
+    vk::WriteDescriptorSet textureWrite;
     textureWrite.descriptorCount = 1;
     textureWrite.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     textureWrite.dstSet = object.material->textureSet;
@@ -671,7 +658,7 @@ void GameZero::Renderer::InitDescriptors(){
         { vk::DescriptorType::eCombinedImageSampler, 10}
 	};
 
-	vk::DescriptorPoolCreateInfo pool_info = {};
+	vk::DescriptorPoolCreateInfo pool_info;
 	pool_info.maxSets = 10;
 	pool_info.poolSizeCount = (uint32_t)sizes.size();
 	pool_info.pPoolSizes = sizes.data();
@@ -681,10 +668,9 @@ void GameZero::Renderer::InitDescriptors(){
     PushFunction([=](){
         device.logical.destroyDescriptorPool(descriptorPool, nullptr);
     });
-    LOG(INFO, "Created Descriptor Pool");
 
 	//information about the binding.
-	vk::DescriptorSetLayoutBinding camBufferBinding = {};
+	vk::DescriptorSetLayoutBinding camBufferBinding;
 	camBufferBinding.binding = 0;
     // this variable is for passing array of data
 	camBufferBinding.descriptorCount = 1;
@@ -693,7 +679,7 @@ void GameZero::Renderer::InitDescriptors(){
 	// we use it from the vertex shader
 	camBufferBinding.stageFlags = vk::ShaderStageFlagBits::eVertex;
 
-	vk::DescriptorSetLayoutCreateInfo setInfo = {};
+	vk::DescriptorSetLayoutCreateInfo setInfo;
 	setInfo.pNext = nullptr;
 	//we are going to have 1 binding
 	setInfo.bindingCount = 1;
@@ -706,13 +692,13 @@ void GameZero::Renderer::InitDescriptors(){
         device.logical.destroyDescriptorSetLayout(descriptorSetLayout);
     });
 
-    vk::DescriptorSetLayoutBinding textureBinding = {};
+    vk::DescriptorSetLayoutBinding textureBinding;
     textureBinding.binding = 0;
     textureBinding.descriptorCount = 1;
     textureBinding.descriptorType = vk::DescriptorType::eCombinedImageSampler;
     textureBinding.stageFlags = vk::ShaderStageFlagBits::eFragment;
 
-    vk::DescriptorSetLayoutCreateInfo textureSetLayoutInfo = {};
+    vk::DescriptorSetLayoutCreateInfo textureSetLayoutInfo;
     textureSetLayoutInfo.bindingCount = 1;
     textureSetLayoutInfo.pBindings = &textureBinding;
 
@@ -743,7 +729,7 @@ void GameZero::Renderer::InitDescriptors(){
 		CHECK_VK_RESULT(device.logical.allocateDescriptorSets(&allocInfo, &frame.descriptorSet), "Failed to allocate Descriptor Set");
     
         //information about the buffer we want to point at in the descriptor
-		vk::DescriptorBufferInfo binfo = {};
+		vk::DescriptorBufferInfo binfo;
 		//it will be the camera buffer
 		binfo.buffer = frame.cameraBuffer.buffer;
 		//at 0 offset
@@ -751,7 +737,7 @@ void GameZero::Renderer::InitDescriptors(){
 		//of the size of a camera data struct
 		binfo.range = sizeof(GPUCameraData);
 
-		vk::WriteDescriptorSet setWrite = {};
+		vk::WriteDescriptorSet setWrite;
 		//we are going to write into binding number 0
 		setWrite.dstBinding = 0;
 		//of the global descriptor
@@ -774,7 +760,7 @@ void GameZero::Renderer::InitDescriptors(){
 
 void GameZero::Renderer::ImmediateSubmit(std::function<void (vk::CommandBuffer)> &&function){
     // allocate default command buffer that we will use for instant commands
-    vk::CommandBufferAllocateInfo cmdBuffAllocInfo = {};
+    vk::CommandBufferAllocateInfo cmdBuffAllocInfo;
     cmdBuffAllocInfo.commandBufferCount = 1;
     cmdBuffAllocInfo.commandPool = uploadContext.commandPool;
     cmdBuffAllocInfo.level = vk::CommandBufferLevel::ePrimary;
@@ -785,7 +771,7 @@ void GameZero::Renderer::ImmediateSubmit(std::function<void (vk::CommandBuffer)>
     
     // begin command buffer
     // we will use this command buffer only once, unlike in a draw command
-    vk::CommandBufferBeginInfo cmdBeginInfo = {};
+    vk::CommandBufferBeginInfo cmdBeginInfo;
     cmdBeginInfo.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
     // begin recording
@@ -798,7 +784,7 @@ void GameZero::Renderer::ImmediateSubmit(std::function<void (vk::CommandBuffer)>
     cmd.end();   
 
     // submit info
-    vk::SubmitInfo submitInfo = {};
+    vk::SubmitInfo submitInfo;
     submitInfo.commandBufferCount = 1;
     submitInfo.pCommandBuffers = &cmd;
     submitInfo.signalSemaphoreCount = 0;
@@ -819,7 +805,7 @@ void GameZero::Renderer::ImmediateSubmit(std::function<void (vk::CommandBuffer)>
 void GameZero::Renderer::UploadMeshToGPU(Mesh* mesh, bool useStaging){
 	// no staging buffer
 	if(!useStaging){
-		vk::BufferCreateInfo  bufferInfo = {};
+		vk::BufferCreateInfo  bufferInfo;
 		bufferInfo.size = mesh->vertices.size() * sizeof(Vertex);
 		bufferInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer;
 
@@ -844,13 +830,13 @@ void GameZero::Renderer::UploadMeshToGPU(Mesh* mesh, bool useStaging){
 		// that gpu only buffer is called staged buffer
 		const size_t bufferSize = mesh->vertices.size() * sizeof(Vertex);
 		// allocate staging buffer
-		vk::BufferCreateInfo stagingBufferInfo = {};
+		vk::BufferCreateInfo stagingBufferInfo;
 		stagingBufferInfo.size = bufferSize;
 		// this is source of transfer
 		stagingBufferInfo.usage = vk::BufferUsageFlagBits::eTransferSrc;
 
 		// we want this data to be cpu readble only
-		vma::AllocationCreateInfo allocInfo = {};
+		vma::AllocationCreateInfo allocInfo;
 		allocInfo.usage = vma::MemoryUsage::eCpuOnly;
 		
 		AllocatedBuffer stagingBuffer;
@@ -865,7 +851,7 @@ void GameZero::Renderer::UploadMeshToGPU(Mesh* mesh, bool useStaging){
 		device.allocator.unmapMemory(stagingBuffer.allocation);
 
 		// create staged buffer
-		vk::BufferCreateInfo stagedBufferInfo = {};
+		vk::BufferCreateInfo stagedBufferInfo;
 		stagedBufferInfo.size = bufferSize;
 		// this is destination of a transfer operation and also a vertex buffer at the same time
 		stagedBufferInfo.usage = vk::BufferUsageFlagBits::eVertexBuffer  | vk::BufferUsageFlagBits::eTransferDst;
@@ -895,7 +881,7 @@ void GameZero::Renderer::LoadImages(){
     Texture texture;
     LoadImageFromFile(this, "../assets/textures/lost_empire-RGBA.png", texture.image);
     
-    vk::ImageViewCreateInfo imageViewInfo = {};
+    vk::ImageViewCreateInfo imageViewInfo;
     imageViewInfo.format = vk::Format::eR8G8B8A8Srgb;
     imageViewInfo.image = texture.image.image;
     imageViewInfo.viewType = vk::ImageViewType::e2D;

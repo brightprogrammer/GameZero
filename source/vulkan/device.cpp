@@ -39,7 +39,6 @@ std::vector<const char*> GetPhysicalDeviceExtensionNames(const vk::PhysicalDevic
 
 // rate a given physical device
 uint32_t RatePhysicalDevice(const vk::PhysicalDevice& physicalDevice, const vk::SurfaceKHR& surface){
-    LOG(DEBUG, "DONE HERE")
     // device score
     uint32_t score = 0;
 
@@ -94,7 +93,6 @@ uint32_t RatePhysicalDevice(const vk::PhysicalDevice& physicalDevice, const vk::
     // in that case we have to check it differently
     if(queueIdx+1 == queues.size() && !presentationSupported) score = 0;
     else score += 110000;
-    LOG(DEBUG, "DONE HERE")
 
     // get device extension names
     std::vector<const char*> extensions = GetPhysicalDeviceExtensionNames(physicalDevice);
@@ -241,11 +239,7 @@ GameZero::Device::Device(const Surface& surface){
 
 // create device
 void GameZero::Device::Create(const Surface &surface){
-    LOG(DEBUG, "DONE HERE");
     SelectBestPhysicalDevice(surface);
-    LOG(DEBUG, "DONE HERE");
     CreateDevice(surface);
-    LOG(DEBUG, "DONE HERE");
     CreateAllocator();
-    LOG(DEBUG, "DONE HERE");
 }

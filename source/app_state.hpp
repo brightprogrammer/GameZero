@@ -41,6 +41,7 @@ namespace GameZero{
     inline struct Window* GetMainWindow(){
         return GetApplicationState()->mainWindow;
     }
+
 }
 
 #endif//GAMEZERO_APP_STATE_HPP

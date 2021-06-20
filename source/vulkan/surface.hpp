@@ -30,7 +30,7 @@ namespace GameZero{
          * 
          * @param window : window that will use this surface
          */
-        Surface(const Window& window){
+        Surface(Window* window){
             Create(window);
         }
 
@@ -39,7 +39,7 @@ namespace GameZero{
          * 
          * @param window 
          */
-        void Create(const Window& window);
+        void Create(Window* window);
 
         /// destroy this surface
         inline void Destroy(){

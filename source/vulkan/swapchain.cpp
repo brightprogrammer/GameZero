@@ -20,10 +20,11 @@ void GameZero::Swapchain::Create(Surface& surface, const Device &device){
     std::vector<uint32_t> uniqueQueueIndices;
 
     // get best surface details
+    // we get surface details here only and no other place
     surface.details = SurfaceDetails(surface.surface, device.physical);
 
     // get minimum image count for swapchain
-    uint32_t minImageCount = 0;
+    uint32_t minImageCount = surface.details.surfaceCapabilities.minImageCount + 1;
     // clamp the value b/w min and max image count
     if(
         (surface.details.surfaceCapabilities.maxImageCount > 0) &&
@@ -31,6 +32,9 @@ void GameZero::Swapchain::Create(Surface& surface, const Device &device){
     ){
         minImageCount = surface.details.surfaceCapabilities.maxImageCount;
     }
+
+    // check if we got the image image count correct
+    ASSERT(minImageCount >= surface.details.surfaceCapabilities.minImageCount, "Failed to deduce image image count  correctly");
 
     vk::SharingMode imageSharingMode;
 
@@ -63,7 +67,8 @@ void GameZero::Swapchain::Create(Surface& surface, const Device &device){
         1, /* image array layers*/ 
         vk::ImageUsageFlagBits::eColorAttachment, /* usage */
         imageSharingMode, /* is image shared between multiple queue families? */
-        uniqueQueueIndices.size(), uniqueQueueIndices.data(), /* unique queue indices */
+        uniqueQueueIndices.size(),  /* unique queue indices count */
+        uniqueQueueIndices.size() > 0 ? uniqueQueueIndices.data() : nullptr , /* unique queue indices */
         vk::SurfaceTransformFlagBitsKHR::eIdentity, /* image transformation */
         vk::CompositeAlphaFlagBitsKHR::eOpaque, /* are images opaque */
         surface.details.presentMode, /* present mode */

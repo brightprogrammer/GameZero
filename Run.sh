@@ -1,8 +1,7 @@
 #!/bin/sh
 
 # configure this variable before building
-PROJECT_ROOT_DIR=/home/brightprogrammer/Projects/GameProjects/GameZero
-NUM_THEADS_PER_BUILD=4
+PROJECT_ROOT_DIR=$PWD
 
 # make build directory if not present
 cd $PROJECT_ROOT_DIR
@@ -34,7 +33,7 @@ cd build # in project root dir
 
 # generate makefile
 cmake ..
-make -j$NUM_THEADS_PER_BUILD
+make -j3
 ./GameZero
 cd .. # project root
 

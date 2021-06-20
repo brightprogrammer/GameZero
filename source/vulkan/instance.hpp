@@ -18,6 +18,7 @@
 #define GAMEZERO_GLOBALS_HPP
 
 #include <vulkan/vulkan.hpp>
+#include "../utils.hpp"
 
 namespace GameZero{
 
@@ -28,8 +29,23 @@ namespace GameZero{
     #define VK_LAYER_LUNARG_MONITOR_LAYER_NAME            "VK_LAYER_LUNARG_monitor"
     #define VK_LAYER_LUNARG_SCREENSHOT_LAYER_NAME         "VK_LAYER_LUNARG_screenshot"
 
+    struct Instance : Singleton<Instance>{
+	/// instance constructor
+ 	Instance();
+	
+	/// instance destructor
+	~Instance(){
+	    instance.destroy();
+	}
+
+	/// vulkan instance handle
+	vk::Instance instance;
+    };
+
     /// get global vulkan instance
-    const vk::Instance& GetVulkanInstance();
+    inline const vk::Instance& GetVulkanInstance(){
+        return Instance::Get()->instance;
+    }
 }
 
 #endif//GAMEZERO_GLOBALS_HPP
