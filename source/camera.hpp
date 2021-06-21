@@ -20,7 +20,7 @@ namespace GameZero{
 
     class Camera{
         /// mouse motion callback from camera
-        bool MouseMotionCallback(const Vector2f& pos, const Vector2f relPos, Window* window);
+        bool MouseMotionCallback(const Vector2f& pos, const Vector2f& relPos, Window* window);
         /// keyboard callback from camera
         bool KeyboardCallback(Keyboard key, bool keyDown, Window* window);
 

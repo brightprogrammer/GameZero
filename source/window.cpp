@@ -132,3 +132,18 @@ void GameZero::Window::HandleEvents(){
 }
 
 
+// set window event callback
+void GameZero::Window::RegisterWindowEventCallback(const char* callbackName, GameZero::Window::WindowEventCallbackPtr callback){
+    windowEventCallbacks.insert(std::make_pair(callbackName, callback));
+}
+
+// set keyboard event callback
+void GameZero::Window::RegisterKeyboardEventCallback(const char* callbackName, GameZero::Window::KeyboardEventCallbackPtr callback){
+    keyboardEventCallbacks.insert(std::make_pair(callbackName, callback));
+}
+
+// set mouse motion event callback
+
+void GameZero::Window::RegisterMouseMotionEventCallback(const char* callbackName, GameZero::Window::MouseMotionEventCallbackPtr callback){
+    mouseMotionEventCallbacks.insert(std::make_pair(callbackName, callback));
+}

@@ -6,7 +6,7 @@
 
 using namespace GameZero;
 
-bool GameZero::Camera::MouseMotionCallback(const Vector2f& pos, const Vector2f relPos, Window* window){
+bool GameZero::Camera::MouseMotionCallback(const Vector2f& pos, const Vector2f& relPos, Window* window){
     // calculate yaw and pitch
     yaw     += float(relPos.x) * angularSpeed;
     pitch   += float(-relPos.y) * angularSpeed;
@@ -56,6 +56,8 @@ bool GameZero::Camera::KeyboardCallback(Keyboard key, bool keyDown, Window* wind
 
 // camera constructor
 GameZero::Camera::Camera(const char* name, Window& window) : name(name), window(window){
-    window.RegisterCallback(name, &GameZero::Camera::MouseMotionCallback);
-    window.RegisterCallback(name, &GameZero::Camera::KeyboardCallback);
+    GameZero::Window::MouseMotionEventCallbackPtr windowEventCallback = reinterpret_cast<Window::MouseMotionEventCallbackPtr>(&GameZero::Camera::MouseMotionCallback);
+    GameZero::Window::KeyboardEventCallbackPtr keyboardEventCallback = reinterpret_cast<Window::KeyboardEventCallbackPtr>(&GameZero::Camera::KeyboardCallback);
+    window.RegisterMouseMotionEventCallback(name, windowEventCallback);
+    window.RegisterKeyboardEventCallback(name, keyboardEventCallback);
 }

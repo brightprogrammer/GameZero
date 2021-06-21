@@ -26,7 +26,7 @@ int main(){
     GameZero::Window window("GameZero - Editor", GameZero::Vector2u(800, 600));
 
     // register window event callback
-    window.RegisterCallback("winevt", &WindowEventCallback);
+    window.RegisterWindowEventCallback("winevt", &WindowEventCallback);
 
     GameZero::ApplicationState *app = GameZero::ApplicationState::Get();
     app->name = "GameZero";

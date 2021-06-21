@@ -97,14 +97,32 @@ namespace GameZero{
         /**
          * @brief Register a new callback to window
          * 
-         * @tparam callbackType : type of callback (eg:WindowEventCallbackPtr, KeyboardEventCallbackPtr, etc...)
          * @param callbackName : name of callback for querying callbacks.
          *        You can set this to who registers the callback.
          *        Callbacks registered by a camera will be named same as camera name.
          * @param callback : callback function pointer with matching signature as that of callback type.
          */
-        template<typename callbackType>
-        void RegisterCallback(const char* callbackName, callbackType callback);
+        void RegisterWindowEventCallback(const char* callbackName, WindowEventCallbackPtr callback);
+
+                /**
+         * @brief Register a new callback to window
+         * 
+         * @param callbackName : name of callback for querying callbacks.
+         *        You can set this to who registers the callback.
+         *        Callbacks registered by a camera will be named same as camera name.
+         * @param callback : callback function pointer with matching signature as that of callback type.
+         */
+        void RegisterKeyboardEventCallback(const char* callbackName, KeyboardEventCallbackPtr callback);
+
+        /**
+         * @brief Register a new callback to window
+         * 
+         * @param callbackName : name of callback for querying callbacks.
+         *        You can set this to who registers the callback.
+         *        Callbacks registered by a camera will be named same as camera name.
+         * @param callback : callback function pointer with matching signature as that of callback type.
+         */
+        void RegisterMouseMotionEventCallback(const char* callbackName, MouseMotionEventCallbackPtr callback);
 
         /**
          * @brief Create Window
@@ -127,8 +145,5 @@ namespace GameZero{
         void HandleEvents();
     };
 }
-
-// include implementation
-#include "window_impl.hpp"
 
 #endif//GAMEZERO_WINDOW_HPP
