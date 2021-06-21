@@ -1,32 +1,16 @@
 #ifndef GAMEZERO_WINDOW_HPP
 #define GAMEZERO_WINDOW_HPP
 
+#include <SDL2/SDL.h>
+
+#include <unordered_map>
+
 #include "common.hpp"
 #include "math.hpp"
+#include "utils/sdl_helper.hpp"
 
 namespace GameZero{
     
-    /// window event
-    enum WindowEvent : uint8_t{
-        None        = SDL_WINDOWEVENT_NONE,
-        Shown       = SDL_WINDOWEVENT_SHOWN,
-        Hidden      = SDL_WINDOWEVENT_HIDDEN,
-        Exposed     = SDL_WINDOWEVENT_EXPOSED,
-        Moved       = SDL_WINDOWEVENT_MOVED,
-        Resized     = SDL_WINDOWEVENT_RESIZED,
-        SizeChanged = SDL_WINDOWEVENT_SIZE_CHANGED,
-        Minimized   = SDL_WINDOWEVENT_MINIMIZED,
-        Maximized   = SDL_WINDOWEVENT_MAXIMIZED,
-        Restored    = SDL_WINDOWEVENT_RESTORED,
-        Enter       = SDL_WINDOWEVENT_ENTER,
-        Leave       = SDL_WINDOWEVENT_LEAVE,
-        FocusGained = SDL_WINDOWEVENT_FOCUS_GAINED,
-        FocusLost   = SDL_WINDOWEVENT_FOCUS_LOST,
-        Close       = SDL_WINDOWEVENT_CLOSE,
-        TakeFocus   = SDL_WINDOWEVENT_TAKE_FOCUS,
-        HitTest     = SDL_WINDOWEVENT_HIT_TEST
-    };
-
     /**
      * @note Window::surface is not created instantly.
      *
@@ -35,7 +19,8 @@ namespace GameZero{
      */
 
     /// Window
-    struct Window{
+    class Window{
+    public:
         /// sdl window handle
         SDL_Window* window = nullptr;
         /// size of this window
@@ -46,8 +31,6 @@ namespace GameZero{
         bool isOpen = true;
         /// sdl window id
         int windowID;
-        /// window event callback
-        bool (*WindowEventCallback)(const WindowEvent& winEvent, const Window* window);
 
         /// empty constructor
         Window();
@@ -65,7 +48,64 @@ namespace GameZero{
          * 
          */
         ~Window();
+
+        /**
+         * @brief Callback type to process keyboard events
+         *        A keyboard event handler is already 
+         * 
+         * @param key : which keyboard key was pressed
+         * @param keyDown : key down (true) or key up (false)
+         * @param window : window that used this callback
+         *
+         * @return is window open ? 
+         */
+        typedef bool (*KeyboardEventCallbackPtr)(Keyboard key, bool keyDown, Window* window);
+
+        /**
+         * @brief Callback type to process window events
+         * 
+         * @param windowEvent : which window event happened
+         * @param window : window that used this callback
+         *
+         * @return is window open ? 
+         */
+        typedef bool (*WindowEventCallbackPtr)(const WindowEvent& windowEvent, Window* window);
+
+        /**
+         * @brief Callback type to process mouse motion events.
+         *        This is set by camera automatically if a camera
+         *        uses this window.
+         *        Setting this to some manual function other than camera
+         *        can help in creating custom camera.
+         *
+         * @param position : current position of mouse.
+         * @param relativePosition : relative position of mouse with respect
+         *        to last mouse position.
+         * @param window : the window that used this callback.
+         * 
+         * @return is window open ? 
+         */
+        typedef bool (*MouseMotionEventCallbackPtr)(const Vector2f& position, const Vector2f& relativePosition, Window* window);
         
+        /// list of all registered window event callbacks
+        std::unordered_map<const char*, WindowEventCallbackPtr> windowEventCallbacks;
+        /// list of all registered keyboard event callbacks
+        std::unordered_map<const char*, KeyboardEventCallbackPtr> keyboardEventCallbacks;
+        /// list of all registered mouse motion event callbacks
+        std::unordered_map<const char*, MouseMotionEventCallbackPtr> mouseMotionEventCallbacks;
+
+        /**
+         * @brief Register a new callback to window
+         * 
+         * @tparam callbackType : type of callback (eg:WindowEventCallbackPtr, KeyboardEventCallbackPtr, etc...)
+         * @param callbackName : name of callback for querying callbacks.
+         *        You can set this to who registers the callback.
+         *        Callbacks registered by a camera will be named same as camera name.
+         * @param callback : callback function pointer with matching signature as that of callback type.
+         */
+        template<typename callbackType>
+        void RegisterCallback(const char* callbackName, callbackType callback);
+
         /**
          * @brief Create Window
          * 
@@ -86,7 +126,9 @@ namespace GameZero{
         /// handle recieved events
         void HandleEvents();
     };
-
 }
+
+// include implementation
+#include "window_impl.hpp"
 
 #endif//GAMEZERO_WINDOW_HPP

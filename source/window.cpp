@@ -10,28 +10,29 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdio>
 
-inline void initSDLVideo(){
-    // initialize video subsystem
-    if(SDL_WasInit(SDL_INIT_VIDEO)){ SDL_InitSubSystem(SDL_INIT_VIDEO); }
+// initialize a sdl subsystem for first time only
+inline void InitializeSDLSubSystem(uint32_t&& subSystemFlag){
+    // initialize video subsystem if it isn;t initialized yet
+    if(SDL_WasInit(subSystemFlag) != SDL_TRUE){ SDL_InitSubSystem(subSystemFlag); }
 }
 
 // default callback
-inline bool DefaultWindowEventCallback(const GameZero::WindowEvent& winEvt, const GameZero::Window* window){
-    if(winEvt == GameZero::Close) return false;
+inline bool DefaultWindowEventCallback(const GameZero::WindowEvent& winEvt, GameZero::Window* window){
+    if(winEvt == GameZero::WindowEvent::Close) return false;
     return true;
 }
 
 // empty constructor
 GameZero::Window::Window(){
-    initSDLVideo();
-    WindowEventCallback = DefaultWindowEventCallback;
+    InitializeSDLSubSystem(SDL_INIT_VIDEO);
+    // WindowEventCallback = DefaultWindowEventCallback;
 }
 
 // create window
-GameZero::Window::Window(const char* windowTitle, const Vector2u& windowSize) : title(windowTitle), size(windowSize){
-    initSDLVideo();
-    WindowEventCallback = DefaultWindowEventCallback;
-    SDL_WindowFlags windowFlags = SDL_WindowFlags(SDL_WINDOW_VULKAN | SDL_WINDOW_FULLSCREEN);
+GameZero::Window::Window(const char* windowTitle, const Vector2u& windowSize) :size(windowSize), title(windowTitle){
+    InitializeSDLSubSystem(SDL_INIT_VIDEO);
+    // WindowEventCallback = DefaultWindowEventCallback;
+    SDL_WindowFlags windowFlags = SDL_WindowFlags(SDL_WINDOW_VULKAN);
     
     window = SDL_CreateWindow(title, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, size.x, size.y, windowFlags);
     ASSERT(window != nullptr, "FAILED TO CREATE WINDOW : [ Window Title %s ] ", SDL_GetError());
@@ -52,7 +53,7 @@ GameZero::Window::~Window(){
 
 // create window
 void GameZero::Window::Create(const char *windowTitle, const Vector2u &windowSize){
-    initSDLVideo();
+    InitializeSDLSubSystem(SDL_INIT_VIDEO);
     size = windowSize;
     title = windowTitle;
     SDL_WindowFlags windowFlags = SDL_WINDOW_VULKAN;
@@ -66,11 +67,68 @@ void GameZero::Window::Create(const char *windowTitle, const Vector2u &windowSiz
     LOG(INFO, "Window created : %s", title)
 }
 
+// handle window events by using window event callback
 void GameZero::Window::HandleEvents(){
     static SDL_Event event;
     
-    SDL_PollEvent(&event);
-    if( (event.type == SDL_WINDOWEVENT) && (event.window.windowID == windowID) ){
-        isOpen = WindowEventCallback(WindowEvent(event.window.event), this);
+    // get all pending events
+    // when there are no events, SDL_PollEvent returns 0
+    // till that we have to get all events otherwise
+    // we will recieve events per frame only!
+    // which is a blundur
+    while(SDL_PollEvent(&event)){
+        // check window id for this window
+        if(event.window.windowID == windowID){
+            // handle window events
+            if(event.type == SDL_WINDOWEVENT){
+                // if window event callbacks is not empty then call all registered callbacks one by one
+                if(!windowEventCallbacks.empty()){
+                    for(const auto& [name, callback] : windowEventCallbacks){
+                        isOpen = callback(WindowEvent(event.window.event), this);
+                        if(!isOpen) return;
+                    }
+                }else{
+                    // if no windowevent callback is registered then call default callback
+                    DefaultWindowEventCallback(WindowEvent(event.window.event), this);
+                }
+            } // if(event.type == SDL_WINDOWEVENT)
+
+            // handle keyboard events
+            if(event.type == SDL_KEYDOWN){
+                if(!keyboardEventCallbacks.empty()){
+                    for(const auto& [name, callback] : keyboardEventCallbacks){
+                        isOpen = callback(Keyboard(event.key.keysym.sym), true, this);
+                        if(!isOpen) return;
+                    }
+                }
+            } // if(event.type == SDL_KEYDOWN) 
+
+            // handle keyboard events
+            if(event.type == SDL_KEYUP){
+                if(!keyboardEventCallbacks.empty()){
+                    for(const auto& [name, callback] : keyboardEventCallbacks){
+                        isOpen = callback(Keyboard(event.key.keysym.sym), false, this);
+                        if(!isOpen) return;
+                    }
+                }
+            } // if(event.type == SDL_KEYUP)
+
+            // handle mouse motion events
+            if(event.type == SDL_MOUSEMOTION){
+                if(!mouseMotionEventCallbacks.empty()){
+                    for(const auto& [name, callback] : mouseMotionEventCallbacks){
+                        isOpen = callback(Vector2f(event.motion.x, event.motion.y), Vector2f(event.motion.xrel, event.motion.yrel), this);
+                        if(!isOpen) return;
+                    }
+                }
+            }
+
+        } // if(event.window.windowID == windowID)
+        else{
+            // if this wasn't the window then resend the event
+            SDL_PushEvent(&event);
+        }
     }
 }
+
+

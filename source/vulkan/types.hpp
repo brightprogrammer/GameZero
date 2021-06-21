@@ -50,12 +50,11 @@ namespace GameZero{
         glm::mat4 transform = glm::mat4(1.0f);
     };
 
-    // camera data
-    struct GPUCameraData{
-        glm::mat4 model;
-        glm::mat4 view;
-        glm::mat4 proj;
-    };
+struct GPUCameraData{
+            glm::mat4 model;
+            glm::mat4 view;
+            glm::mat4 proj;
+        };
 
     /// frame data
     struct FrameData{
