@@ -3,14 +3,20 @@
 
 #include <SDL2/SDL.h>
 
-#include <unordered_map>
+#include <deque>
+#include <functional>
 
 #include "common.hpp"
 #include "math.hpp"
-#include "utils/sdl_helper.hpp"
+#include "event.hpp"
 
 namespace GameZero{
     
+    using KeyboardEventCallback = std::function<bool(KeyboardEventInfo&)>;
+    using WindowEventCallback = std::function<bool(WindowEventInfo&)>;
+    using MouseMotionEventCallback = std::function<bool(MouseMotionEventInfo&)>;
+        
+
     /**
      * @note Window::surface is not created instantly.
      *
@@ -49,80 +55,24 @@ namespace GameZero{
          */
         ~Window();
 
-        /**
-         * @brief Callback type to process keyboard events
-         *        A keyboard event handler is already 
-         * 
-         * @param key : which keyboard key was pressed
-         * @param keyDown : key down (true) or key up (false)
-         * @param window : window that used this callback
-         *
-         * @return is window open ? 
-         */
-        typedef bool (*KeyboardEventCallbackPtr)(Keyboard key, bool keyDown, Window* window);
-
-        /**
-         * @brief Callback type to process window events
-         * 
-         * @param windowEvent : which window event happened
-         * @param window : window that used this callback
-         *
-         * @return is window open ? 
-         */
-        typedef bool (*WindowEventCallbackPtr)(const WindowEvent& windowEvent, Window* window);
-
-        /**
-         * @brief Callback type to process mouse motion events.
-         *        This is set by camera automatically if a camera
-         *        uses this window.
-         *        Setting this to some manual function other than camera
-         *        can help in creating custom camera.
-         *
-         * @param position : current position of mouse.
-         * @param relativePosition : relative position of mouse with respect
-         *        to last mouse position.
-         * @param window : the window that used this callback.
-         * 
-         * @return is window open ? 
-         */
-        typedef bool (*MouseMotionEventCallbackPtr)(const Vector2f& position, const Vector2f& relativePosition, Window* window);
-        
         /// list of all registered window event callbacks
-        std::unordered_map<const char*, WindowEventCallbackPtr> windowEventCallbacks;
+        std::deque<WindowEventCallback> windowEventCallbacks;
         /// list of all registered keyboard event callbacks
-        std::unordered_map<const char*, KeyboardEventCallbackPtr> keyboardEventCallbacks;
+        std::deque<KeyboardEventCallback> keyboardEventCallbacks;
         /// list of all registered mouse motion event callbacks
-        std::unordered_map<const char*, MouseMotionEventCallbackPtr> mouseMotionEventCallbacks;
+        std::deque<MouseMotionEventCallback> mouseMotionEventCallbacks;
 
-        /**
-         * @brief Register a new callback to window
-         * 
-         * @param callbackName : name of callback for querying callbacks.
-         *        You can set this to who registers the callback.
-         *        Callbacks registered by a camera will be named same as camera name.
-         * @param callback : callback function pointer with matching signature as that of callback type.
-         */
-        void RegisterWindowEventCallback(const char* callbackName, WindowEventCallbackPtr callback);
+        void RegisterWindowEventCallback(WindowEventCallback&& callback){
+            windowEventCallbacks.push_back(callback);
+        }
 
-                /**
-         * @brief Register a new callback to window
-         * 
-         * @param callbackName : name of callback for querying callbacks.
-         *        You can set this to who registers the callback.
-         *        Callbacks registered by a camera will be named same as camera name.
-         * @param callback : callback function pointer with matching signature as that of callback type.
-         */
-        void RegisterKeyboardEventCallback(const char* callbackName, KeyboardEventCallbackPtr callback);
+        void RegisterKeyboardEventCallback(KeyboardEventCallback&& callback){
+            keyboardEventCallbacks.push_back(callback);
+        }
 
-        /**
-         * @brief Register a new callback to window
-         * 
-         * @param callbackName : name of callback for querying callbacks.
-         *        You can set this to who registers the callback.
-         *        Callbacks registered by a camera will be named same as camera name.
-         * @param callback : callback function pointer with matching signature as that of callback type.
-         */
-        void RegisterMouseMotionEventCallback(const char* callbackName, MouseMotionEventCallbackPtr callback);
+        void RegisterMouseMotionEventCallback(MouseMotionEventCallback&& callback){
+            mouseMotionEventCallbacks.push_back(callback);
+        }
 
         /**
          * @brief Create Window

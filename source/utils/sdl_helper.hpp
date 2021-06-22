@@ -5,6 +5,18 @@
 #include <SDL2/SDL.h>
 
 namespace GameZero{
+
+    /**
+     * @brief Initialize SDL Subsystem.
+     *        No matter how much you call this function, this will enable a subsystem only once
+     * 
+     * @param subSystemFlag : eg : SDL_INIT_VIDEO, SDL_INIT_AUDIO etc...
+     */
+    inline void InitializeSDLSubSystem(uint32_t&& subSystemFlag){
+        // initialize video subsystem if it isn;t initialized yet
+        if(SDL_WasInit(subSystemFlag) != SDL_TRUE){ SDL_InitSubSystem(subSystemFlag); }
+    }
+
     
     /**
      * @brief Window event enums. They are wrapper around sdl enums
@@ -266,7 +278,12 @@ namespace GameZero{
         KeyQuestion                         = SDLK_QUESTION,
         KeyDoubleQuotes                     = SDLK_QUOTEDBL,
         KeyRightParenthesis                 = SDLK_RIGHTPAREN,
-        KeyUndescore                        = SDLK_UNDERSCORE
+        KeyUndescore                        = SDLK_UNDERSCORE    
+    };
+
+    /// key state enum is used in keyboard event info
+    enum class KeyState : bool{
+        Up = false , Down = true
     };
 
 }

@@ -10,12 +10,6 @@
 #include "vulkan/vulkan_core.h"
 #include <cstdio>
 
-// initialize a sdl subsystem for first time only
-inline void InitializeSDLSubSystem(uint32_t&& subSystemFlag){
-    // initialize video subsystem if it isn;t initialized yet
-    if(SDL_WasInit(subSystemFlag) != SDL_TRUE){ SDL_InitSubSystem(subSystemFlag); }
-}
-
 // default callback
 inline bool DefaultWindowEventCallback(const GameZero::WindowEvent& winEvt, GameZero::Window* window){
     if(winEvt == GameZero::WindowEvent::Close) return false;
@@ -83,8 +77,14 @@ void GameZero::Window::HandleEvents(){
             if(event.type == SDL_WINDOWEVENT){
                 // if window event callbacks is not empty then call all registered callbacks one by one
                 if(!windowEventCallbacks.empty()){
-                    for(const auto& [name, callback] : windowEventCallbacks){
-                        isOpen = callback(WindowEvent(event.window.event), this);
+                    for(const auto& callback : windowEventCallbacks){
+                        // create event info
+                        WindowEventInfo info;
+                        info.event = WindowEvent(event.window.event);
+                        info.window = this;
+
+                        // callback
+                        isOpen = callback(info);
                         if(!isOpen) return;
                     }
                 }else{
@@ -96,8 +96,15 @@ void GameZero::Window::HandleEvents(){
             // handle keyboard events
             if(event.type == SDL_KEYDOWN){
                 if(!keyboardEventCallbacks.empty()){
-                    for(const auto& [name, callback] : keyboardEventCallbacks){
-                        isOpen = callback(Keyboard(event.key.keysym.sym), true, this);
+                    for(const auto& callback : keyboardEventCallbacks){
+                        // create event info
+                        KeyboardEventInfo info;
+                        info.key = Keyboard(event.key.keysym.sym);
+                        info.state = KeyState::Down;
+                        info.window = this;
+
+                        // callback
+                        isOpen = callback(info);
                         if(!isOpen) return;
                     }
                 }
@@ -106,8 +113,16 @@ void GameZero::Window::HandleEvents(){
             // handle keyboard events
             if(event.type == SDL_KEYUP){
                 if(!keyboardEventCallbacks.empty()){
-                    for(const auto& [name, callback] : keyboardEventCallbacks){
-                        isOpen = callback(Keyboard(event.key.keysym.sym), false, this);
+                    for(const auto& callback : keyboardEventCallbacks){
+                        // create event info
+                        KeyboardEventInfo info;
+                        info.key = Keyboard(event.key.keysym.sym);
+                        info.state = KeyState::Up;
+                        info.window = this;
+
+                        // callback
+                        isOpen = callback(info);
+                        if(!isOpen) return;
                         if(!isOpen) return;
                     }
                 }
@@ -116,8 +131,15 @@ void GameZero::Window::HandleEvents(){
             // handle mouse motion events
             if(event.type == SDL_MOUSEMOTION){
                 if(!mouseMotionEventCallbacks.empty()){
-                    for(const auto& [name, callback] : mouseMotionEventCallbacks){
-                        isOpen = callback(Vector2f(event.motion.x, event.motion.y), Vector2f(event.motion.xrel, event.motion.yrel), this);
+                    for(const auto& callback : mouseMotionEventCallbacks){
+                        // create event info
+                        MouseMotionEventInfo info;
+                        info.position = Vector2f(event.motion.x, event.motion.y);
+                        info.relativePosition = Vector2f(event.motion.xrel, event.motion.yrel);
+                        info.window = this;
+
+                        // callback
+                        isOpen = callback(info);
                         if(!isOpen) return;
                     }
                 }
@@ -132,18 +154,18 @@ void GameZero::Window::HandleEvents(){
 }
 
 
-// set window event callback
-void GameZero::Window::RegisterWindowEventCallback(const char* callbackName, GameZero::Window::WindowEventCallbackPtr callback){
-    windowEventCallbacks.insert(std::make_pair(callbackName, callback));
-}
+// // set window event callback
+// void GameZero::Window::RegisterWindowEventCallback(const char* callbackName, GameZero::Window::WindowEventCallbackPtr callback){
+//     windowEventCallbacks.insert(std::make_pair(callbackName, callback));
+// }
 
-// set keyboard event callback
-void GameZero::Window::RegisterKeyboardEventCallback(const char* callbackName, GameZero::Window::KeyboardEventCallbackPtr callback){
-    keyboardEventCallbacks.insert(std::make_pair(callbackName, callback));
-}
+// // set keyboard event callback
+// void GameZero::Window::RegisterKeyboardEventCallback(const char* callbackName, GameZero::Window::KeyboardEventCallbackPtr callback){
+//     keyboardEventCallbacks.insert(std::make_pair(callbackName, callback));
+// }
 
-// set mouse motion event callback
+// // set mouse motion event callback
 
-void GameZero::Window::RegisterMouseMotionEventCallback(const char* callbackName, GameZero::Window::MouseMotionEventCallbackPtr callback){
-    mouseMotionEventCallbacks.insert(std::make_pair(callbackName, callback));
-}
+// void GameZero::Window::RegisterMouseMotionEventCallback(const char* callbackName, GameZero::Window::MouseMotionEventCallbackPtr callback){
+//     mouseMotionEventCallbacks.insert(std::make_pair(callbackName, callback));
+// }

@@ -19,11 +19,6 @@
 namespace GameZero{
 
     class Camera{
-        /// mouse motion callback from camera
-        bool MouseMotionCallback(const Vector2f& pos, const Vector2f& relPos, Window* window);
-        /// keyboard callback from camera
-        bool KeyboardCallback(Keyboard key, bool keyDown, Window* window);
-
         /// camera data is in one struct so that it can be
         /// easily copied in just one call
         struct GPUCameraData{

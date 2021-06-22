@@ -15,30 +15,29 @@
 #include <stdexcept>
 #include <unordered_map>
 
-bool WindowEventCallback(const GameZero::WindowEvent& event, GameZero::Window* window){
-    LOG(DEBUG, "CUSTOM CALLBACK");
-    if(event == GameZero::WindowEvent::Close) return false;
-    return true;
-}
+using namespace GameZero;
 
 int main(){
     // create window
-    GameZero::Window window("GameZero - Editor", GameZero::Vector2u(800, 600));
+    Window window("GameZero - Editor", Vector2u(800, 600));
 
     // register window event callback
-    window.RegisterWindowEventCallback("winevt", &WindowEventCallback);
+    window.RegisterWindowEventCallback([](WindowEventInfo& info){
+        if(info.event == WindowEvent::Close) return false;
+        return true;
+    });
 
-    GameZero::ApplicationState *app = GameZero::ApplicationState::Get();
+    ApplicationState *app = ApplicationState::Get();
     app->name = "GameZero";
     app->version = time(nullptr);
     app->enableValidation = true;
     app->mainWindow = &window;
 
     // create renderer for winodw
-    GameZero::Renderer renderer(window);
+    Renderer renderer(window);
 
     // create camera
-    GameZero::Camera camera("main camera", window);
+    Camera camera("main camera", window);
 
     while(window.isOpen){
         window.HandleEvents();
