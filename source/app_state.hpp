@@ -8,7 +8,18 @@
 
 namespace GameZero{
 
-    /// game global information
+    /**
+     * @brief Application state contains some basic information
+     *        about your application. Before making any call to
+     *        GetVulkanState you MUST first fill in data to
+     *        application state. Renderer calls GetVulkanInstance()
+     *        so if you are creating a renderer then you must fill in
+     *        valid data before that!
+     *        
+     *        
+     * @note Every field has a default value except mainWindow.
+     *       You must set window before calling
+     */
     struct ApplicationState : public Singleton<ApplicationState>{
         /// application name
         const char* name = "app";
