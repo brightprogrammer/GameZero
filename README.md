@@ -1,2 +1,2 @@
-# This is GameZero - Coming Soon
-author : Siddharth Mishra
+# This is GameZero
+An attempt to learn vulkan
